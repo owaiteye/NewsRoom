@@ -1,0 +1,51 @@
+name: digest
+on:
+  schedule:
+    # 06:00, 12:00, 18:00, 00:00 EAT = 03,09,15,21 UTC
+    - cron: "0 3,9,15,21 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Preview only (no post)"
+        required: false
+        default: "true"
+
+permissions:
+  contents: write
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: Run digest
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_SESSION_STRING: ${{ secrets.TELEGRAM_SESSION_STRING }}
+          API_ID: ${{ secrets.API_ID }}
+          API_HASH: ${{ secrets.API_HASH }}
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "false" ]; then
+            python main.py --mode digest
+          else
+            # scheduled runs post live; manual runs default to dry-run preview
+            if [ "${{ github.event_name }}" = "schedule" ]; then
+              python main.py --mode digest
+            else
+              python main.py --mode digest --dry-run
+            fi
+          fi
+      - name: Persist dedupe state (7-day window)
+        if: always()
+        run: |
+          git config user.name "newsroom-bot"
+          git config user.email "newsroom-bot@users.noreply.github.com"
+          git add -f state.json || true
+          git diff --cached --quiet || git commit -m "state: update seen ids [skip ci]" || true
+          git push || true

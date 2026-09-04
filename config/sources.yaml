@@ -1,0 +1,98 @@
+# ── NewsRoom @generalintel sources ──
+# pillar: uganda | geopolitics | tech | crypto | entertainment
+# trust 1-5 (5 = most trusted). keep it simple: edit URLs/queries here only.
+
+direct_rss:
+  # Uganda / Africa (direct where stable)
+  - { name: "BBC Africa", pillar: uganda, trust: 5, url: "https://feeds.bbci.co.uk/news/world/africa/rss.xml" }
+  - { name: "Daily Monitor", pillar: uganda, trust: 4, url: "https://www.monitor.co.ug/rss" }
+  - { name: "New Vision", pillar: uganda, trust: 4, url: "https://www.newvision.co.ug/rss" }
+  - { name: "NilePost", pillar: uganda, trust: 3, url: "https://nilepost.co.ug/rss" }
+  - { name: "ChimpReports", pillar: uganda, trust: 3, url: "https://chimpreports.com/rss" }
+  - { name: "CNA", pillar: uganda, trust: 4, url: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml" }
+
+  # Geopolitics / World
+  - { name: "BBC World", pillar: geopolitics, trust: 5, url: "https://feeds.bbci.co.uk/news/world/rss.xml" }
+  - { name: "BBC Top", pillar: geopolitics, trust: 5, url: "https://feeds.bbci.co.uk/news/rss.xml" }
+  - { name: "RT News", pillar: geopolitics, trust: 2, url: "https://www.rt.com/rss/news/" }
+  - { name: "NHK World", pillar: geopolitics, trust: 4, url: "https://www3.nhk.or.jp/nhkworld/en/news/list/rss/index.xml" }
+  - { name: "SCMP", pillar: geopolitics, trust: 4, url: "https://www.scmp.com/rss/91/feed" }
+
+  # Tech
+  - { name: "BBC Tech", pillar: tech, trust: 4, url: "https://feeds.bbci.co.uk/news/technology/rss.xml" }
+  - { name: "TechRadar", pillar: tech, trust: 3, url: "https://www.techradar.com/rss" }
+  - { name: "Engadget", pillar: tech, trust: 3, url: "https://www.engadget.com/rss.xml" }
+  - { name: "Tom's Hardware", pillar: tech, trust: 3, url: "https://www.tomshardware.com/feeds/all" }
+  - { name: "How-To Geek", pillar: tech, trust: 3, url: "https://www.howtogeek.com/feed/" }
+  - { name: "MakeUseOf", pillar: tech, trust: 3, url: "https://www.makeuseof.com/feed/" }
+  - { name: "Vox", pillar: tech, trust: 3, url: "https://www.vox.com/rss/index.xml" }
+
+  # Crypto / Finance
+  - { name: "CoinDesk", pillar: crypto, trust: 4, url: "https://www.coindesk.com/arc/outboundfeeds/rss/" }
+  - { name: "Cointelegraph", pillar: crypto, trust: 3, url: "https://cointelegraph.com/rss" }
+
+  # Entertainment / Gaming / Sport / Health
+  - { name: "Polygon", pillar: entertainment, trust: 3, url: "https://www.polygon.com/rss/index.xml" }
+  - { name: "ScreenRant", pillar: entertainment, trust: 3, url: "https://screenrant.com/feed/" }
+  - { name: "CBR", pillar: entertainment, trust: 3, url: "https://www.cbr.com/feed/" }
+  - { name: "GameRant", pillar: entertainment, trust: 3, url: "https://gamerant.com/feed/" }
+  - { name: "PC Gamer", pillar: entertainment, trust: 3, url: "https://www.pcgamer.com/rss/" }
+
+# Google News RSS covers everything with unstable/no RSS (region + big outlets).
+# One query = dozens of outlets. hl/gl tuned for Uganda, but queries are global.
+gnews_queries:
+  - { name: "Uganda", pillar: uganda, trust: 4, query: "Uganda" }
+  - { name: "Kenya", pillar: uganda, trust: 3, query: "Kenya" }
+  - { name: "DRC Congo", pillar: uganda, trust: 3, query: "DR Congo" }
+  - { name: "Rwanda Tanzania", pillar: uganda, trust: 3, query: "Rwanda OR Tanzania OR Burundi OR South Sudan" }
+  - { name: "Zambia Zimbabwe Malawi", pillar: uganda, trust: 3, query: "Zambia OR Zimbabwe OR Malawi OR Madagascar OR Mauritius" }
+  - { name: "South Africa", pillar: uganda, trust: 3, query: "South Africa" }
+  - { name: "Asia Pacific", pillar: geopolitics, trust: 3, query: "Vietnam OR Myanmar OR Indonesia OR Malaysia OR Oman OR UAE" }
+  - { name: "CNN", pillar: geopolitics, trust: 4, query: "site:cnn.com" }
+  - { name: "Telegraph", pillar: geopolitics, trust: 4, query: "site:telegraph.co.uk" }
+  - { name: "Fox News", pillar: geopolitics, trust: 3, query: "site:foxnews.com" }
+  - { name: "Healthline", pillar: entertainment, trust: 3, query: "site:healthline.com" }
+  - { name: "Premier League", pillar: entertainment, trust: 3, query: "Premier League" }
+
+# V2 only — Telegram channels (read-only user session). Bot tokens CANNOT read these.
+telegram_channels:
+  - { name: "africaintel", pillar: uganda, trust: 4, ref: "https://t.me/africaintel" }
+  - { name: "dailymonitor", pillar: uganda, trust: 4, ref: "https://t.me/dailymonitor" }
+  - { name: "aljazeeraglobal", pillar: geopolitics, trust: 4, ref: "https://t.me/aljazeeraglobal" }
+  - { name: "BellumActaNews", pillar: geopolitics, trust: 4, ref: "https://t.me/BellumActaNews" }
+  - { name: "DDGeopolitics", pillar: geopolitics, trust: 4, ref: "https://t.me/DDGeopolitics" }
+  - { name: "geopolitics_prime", pillar: geopolitics, trust: 3, ref: "https://t.me/geopolitics_prime" }
+  - { name: "Middle_East_Spectator", pillar: geopolitics, trust: 3, ref: "https://t.me/Middle_East_Spectator" }
+  - { name: "CIG_telegram", pillar: geopolitics, trust: 3, ref: "https://t.me/CIG_telegram" }
+  - { name: "rtnews", pillar: geopolitics, trust: 2, ref: "https://t.me/rtnews" }
+  - { name: "GeoPWatch", pillar: geopolitics, trust: 3, ref: "https://t.me/GeoPWatch" }
+  - { name: "SputnikInt", pillar: geopolitics, trust: 2, ref: "https://t.me/SputnikInt" }
+  - { name: "rnintel", pillar: geopolitics, trust: 3, ref: "https://t.me/rnintel" }
+  - { name: "constantinesnotebook", pillar: geopolitics, trust: 3, ref: "https://t.me/constantinesnotebook" }
+  - { name: "techjaja", pillar: tech, trust: 3, ref: "https://t.me/techjaja" }
+  - { name: "nhkworld", pillar: geopolitics, trust: 4, ref: "https://t.me/nhkworld" }
+  - { name: "bloomberg", pillar: crypto, trust: 4, ref: "https://t.me/bloomberg" }
+  - { name: "cryptosayer", pillar: crypto, trust: 2, ref: "https://t.me/cryptosayer" }
+  - { name: "memecoin_daily", pillar: crypto, trust: 1, ref: "https://t.me/memecoin_daily" }
+  - { name: "venture", pillar: crypto, trust: 2, ref: "https://t.me/venture" }
+  - { name: "Premier_League_News_TG", pillar: entertainment, trust: 3, ref: "https://t.me/Premier_League_News_TG" }
+  - { name: "science", pillar: entertainment, trust: 3, ref: "https://t.me/science" }
+  - { name: "chinadream_EN", pillar: geopolitics, trust: 2, ref: "https://t.me/chinadream_EN" }
+  - { name: "newslibre", pillar: geopolitics, trust: 3, ref: "https://t.me/newslibre" }
+
+breaking_whitelist:
+  - "BellumActaNews"
+  - "DDGeopolitics"
+  - "africaintel"
+  - "BBC World"
+  - "BBC Top"
+  - "BBC Africa"
+
+breaking_keywords:
+  - "breaking"
+  - "urgent"
+  - "coup"
+  - "explosion"
+  - "earthquake"
+  - "just in"
+  - "developing"
