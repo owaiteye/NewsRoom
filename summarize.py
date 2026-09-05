@@ -29,29 +29,47 @@ GEMINI_MODELS = (
     "gemini-3.6-flash",       # fallback if lite unavailable
 )
 
+CATEGORY_CHOICES = ("conflict, aviation, naval, explosion, space, ai, crypto, "
+                    "markets, football, sport, film, gaming, health, politics, "
+                    "diplomacy, justice, business, other")
+
 def _gemini_polish(title, summary):
+    """Returns (category|None, one-line summary). Same single free call."""
     key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not key:
         raise RuntimeError("no-key")
     prompt = (
-        "Summarize this news in ONE line, under 25 words, plain, no hype, no emoji. "
+        "You are a news classifier. Reply in EXACTLY two lines:\n"
+        f"CATEGORY: <one of: {CATEGORY_CHOICES}>\n"
+        "SUMMARY: <one line, under 25 words, plain, no hype, no emoji>\n"
         f"Title: {title}\nSnippet: {(summary or '')[:600]}"
     )
     last_err = "no-model-tried"
     for model in GEMINI_MODELS:
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
-            r = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=15)
+            r = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=20)
             r.raise_for_status()
             data = r.json()
-            return data["candidates"][0]["content"]["parts"][0]["text"].strip().strip('"')[:220]
+            raw = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+            cat, text = None, raw
+            lines = [ln.strip() for ln in raw.splitlines() if ln.strip()]
+            for ln in lines:
+                low = ln.lower()
+                if low.startswith("category:"):
+                    c = low.split(":", 1)[1].strip().strip('".,*')
+                    from publish import CATEGORY_EMOJI
+                    cat = c if c in CATEGORY_EMOJI else None
+                elif low.startswith("summary:"):
+                    text = ln.split(":", 1)[1].strip().strip('"')
+            return cat, text[:220]
         except Exception as ex:
             last_err = f"{model}: {ex}"
     raise RuntimeError(last_err)
 
 def summarize_item(title, summary, outlet=""):
+    """Returns (category|None, one-line summary). Never raises: offline fallback."""
     try:
-        s = _gemini_polish(title, summary)
-        return s[:220] if len(s) > 220 else s
+        return _gemini_polish(title, summary)
     except Exception:
-        return _extractive(title, summary, outlet=outlet)  # quota-safe: bot never dies
+        return None, _extractive(title, summary, outlet=outlet)  # quota-safe: bot never dies

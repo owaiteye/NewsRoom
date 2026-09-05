@@ -10,20 +10,38 @@ from rank import score_items, pick_digest, pick_breaking, reclassify
 from summarize import summarize_item
 from publish import build_digest_chunks, build_breaking, send_digest, send_breaking, pick_hero
 
-DIGEST_GROUPS = [
-    {"title": "NEWSROOM", "emoji": "🌍", "pillars": ["uganda", "geopolitics"], "limit": 8},
-    {"title": "NEWSROOM+", "emoji": "💻", "pillars": ["tech", "crypto", "entertainment"], "limit": 8},
-]
-
 EAT = datetime.timezone(datetime.timedelta(hours=3))
 SLOTS = {3: "06:00 EAT Morning Brief", 9: "12:00 EAT Midday",
          15: "18:00 EAT Evening", 21: "00:00 EAT Night Wrap"}
+
+DEFAULT_BRANDING = {
+    "digest_a_title": "NEWSROOM", "digest_a_emoji": "🌍",
+    "digest_b_title": "NEWSROOM+", "digest_b_emoji": "💻",
+    "demo_link": "https://t.me/generalintel",
+    "footer": "📣 [Join the Newsroom](https://t.me/generalintel) • #digest",
+}
 
 def slot_label(now_utc=None):
     now_utc = now_utc or datetime.datetime.now(datetime.timezone.utc)
     h = now_utc.hour
     best = min(SLOTS, key=lambda k: abs(k - h))
     return SLOTS[best]
+
+def summarize_all(picks):
+    """Returns (summaries, categories) dicts keyed by link. Never raises."""
+    summaries, categories = {}, {}
+    for it in picks:
+        try:
+            cat, text = summarize_item(
+                it["title"], it.get("summary", ""),
+                it.get("outlet", it.get("source", "")))
+        except Exception as ex:
+            print(f"summarize fallback ({ex})")
+            cat, text = None, (it.get("summary") or it["title"])[:200]
+        summaries[it["link"]] = text
+        if cat:
+            categories[it["link"]] = cat
+    return summaries, categories
 
 def main():
     ap = argparse.ArgumentParser()
@@ -33,6 +51,13 @@ def main():
 
     with open("config/sources.yaml") as f:
         cfg = yaml.safe_load(f)
+    brand = {**DEFAULT_BRANDING, **cfg.get("branding", {})}
+    groups = [
+        {"title": brand["digest_a_title"], "emoji": brand["digest_a_emoji"],
+         "pillars": ["uganda", "geopolitics"], "limit": 8},
+        {"title": brand["digest_b_title"], "emoji": brand["digest_b_emoji"],
+         "pillars": ["tech", "crypto", "entertainment"], "limit": 8},
+    ]
 
     items, errors = collect(cfg)
     if errors:
@@ -64,12 +89,13 @@ def main():
         if not picks:
             print("breaking: no candidates, nothing to post.")
             return
-        summaries = {it["link"]: summarize_item(it["title"], it.get("summary", ""), it.get("outlet", it.get("source", ""))) for it in picks}
-        chunks = build_breaking(picks, summaries)
+        summaries, categories = summarize_all(picks)
+        chunks = build_breaking(picks, summaries, categories)
         hero = next((it.get("image", "") for it in picks if it.get("image")), "")
         if not args.dry_run:
             mark_seen(picks, state); save_state(state)
-        send_breaking(channel, token, chunks, hero_image=hero, dry_run=args.dry_run)
+        send_breaking(channel, token, chunks, hero_image=hero,
+                      dry_run=args.dry_run, join_url=brand["demo_link"])
         print(f"breaking: posted {len(picks)}")
         return
 
@@ -77,21 +103,21 @@ def main():
     if not picks:
         print("digest: nothing fresh, nothing to post.")
         return
-    summaries = {it["link"]: summarize_item(it["title"], it.get("summary", ""), it.get("outlet", it.get("source", ""))) for it in picks}
-    total = 0
-    for g in DIGEST_GROUPS:
+    summaries, categories = summarize_all(picks)
+    for g in groups:
         g_items = [it for it in picks if it.get("pillar") in g["pillars"]][:g["limit"]]
         if not g_items:
             print(f"digest {g['title']}: empty, skipped")
             continue
         caption, chunks = build_digest_chunks(
-            slot_label(), date_label, g_items, summaries,
-            digest_title=g["title"], header_emoji=g["emoji"], pillars=g["pillars"])
+            slot_label(), date_label, g_items, summaries, categories,
+            digest_title=g["title"], header_emoji=g["emoji"],
+            pillars=g["pillars"], footer=brand["footer"])
         hero = pick_hero(g_items)
         if not args.dry_run:
             mark_seen(g_items, state)
-        send_digest(channel, token, caption, chunks, hero_image=hero, dry_run=args.dry_run)
-        total += len(g_items)
+        send_digest(channel, token, caption, chunks, hero_image=hero,
+                    dry_run=args.dry_run, join_url=brand["demo_link"])
         print(f"digest {g['title']}: posted {len(g_items)} stories in {len(chunks)} text messages")
     if not args.dry_run:
         save_state(state)

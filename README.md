@@ -1,5 +1,8 @@
 # NewsRoom — $0 serverless Telegram news digest bot
 
+> **Live demo:** join [@generalintel on Telegram](https://t.me/generalintel)
+> to see it in action — digests post daily, breaking news as it happens.
+
 Turns RSS feeds, Google News, and Telegram channels you follow into **short,
 readable digests** posted to your Telegram channel — automatically, 4x a day,
 with breaking-news alerts in between. No server, no paid APIs, no babysitting.
@@ -113,3 +116,11 @@ main.py / run_local.py   entry points (Actions / phone-or-PC manual run)
 ## License
 
 MIT — see [LICENSE](LICENSE). Use it, fork it, run your own channel with it.
+
+## Maintenance status
+
+This is a personal project published as-is for anyone to use. The maintainer
+is busy running a news channel, so **issues and pull requests may not be
+reviewed — please fork freely** instead of waiting on upstream. The automated
+test suite (`python tests/test_flags.py`, also run in CI) guards the icon
+rules; run it before any change to flag/topic logic.

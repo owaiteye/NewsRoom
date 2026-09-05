@@ -2,6 +2,15 @@
 # pillar: uganda | geopolitics | tech | crypto | entertainment
 # trust 1-5 (5 = most trusted). keep it simple: edit URLs/queries here only.
 
+# Rename the bot in seconds: titles, emojis, demo link and footer.
+branding:
+  digest_a_title: "NEWSROOM"
+  digest_a_emoji: "🌍"
+  digest_b_title: "NEWSROOM+"
+  digest_b_emoji: "💻"
+  demo_link: "https://t.me/generalintel"
+  footer: "📣 [Join the Newsroom](https://t.me/generalintel) • #digest"
+
 direct_rss:
   # Uganda / Africa (direct where stable)
   - { name: "BBC Africa", pillar: uganda, trust: 5, url: "https://feeds.bbci.co.uk/news/world/africa/rss.xml" }
