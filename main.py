@@ -16,7 +16,7 @@ SLOTS = {3: "06:00 EAT Morning Brief", 9: "12:00 EAT Midday",
 
 DEFAULT_BRANDING = {
     "digest_a_title": "NEWSROOM", "digest_a_emoji": "🌍",
-    "digest_b_title": "NEWSROOM+", "digest_b_emoji": "💻",
+    "digest_b_title": "NEWSROOM+", "digest_b_emoji": "⚡",
     "demo_link": "https://t.me/generalintel",
     "footer": "📣 [Join the Newsroom](https://t.me/generalintel) • #digest",
 }

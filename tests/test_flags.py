@@ -7,7 +7,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from publish import story_flag, story_topic, story_emoji
+from publish import story_flag, story_topic, story_emoji, _hi_res
 from collector import normalize_outlet, clean_title
 from listener import _clean_text
 
@@ -90,8 +90,24 @@ assert clean_title("Risk to UK security - Telegraph", "Telegraph") == "Risk to U
 assert clean_title("Arsenal vs Chelsea: Preview, team news", "BBC Top") == "Arsenal vs Chelsea: Preview, team news"
 # topic collapses when identical to flag
 assert story_emoji({"title": "HBO drama review", "summary": "", "pillar": "entertainment",
-                    "source": "s", "outlet": "s"}, "film") == "🎬", story_emoji(
-    {"title": "HBO drama review", "summary": "", "pillar": "entertainment",
-     "source": "s", "outlet": "s"}, "film")
+                    "source": "s", "outlet": "s"}, "film") == "🎬"
+# topic stands alone when the flag is only a pillar fallback (no 🎬⚽)
+def _it(title, pillar="entertainment", outlet="test"):
+    return {"title": title, "summary": "", "pillar": pillar,
+            "source": outlet, "outlet": outlet}
+assert story_emoji(_it("Furious De Zerbi criticises misfiring attack"), "football") == "⚽"
+assert story_emoji(_it("Save 50% on OLED laptop with Ryzen AI", "tech", "Tom's Hardware"), "business") == "💼"
+assert story_emoji(_it("Marmoush connection", "entertainment", "Goal"), "football") == "🇬🇧⚽"
+assert story_emoji(_it("Tottenham draw analysis", "entertainment", "LiveScore"), "football") == "🇬🇧⚽"
+# junk-prefix titles from Telegram forwards
+tj, _ = _clean_text("🇺🇸🤝 (⁣)(  US sanctions Iran-linked Turkish bank  ) The Treasury did things")
+assert tj == "US sanctions Iran-linked Turkish bank The Treasury did things", tj
+# hi-res upgrades + story block bolds the outlet
+assert "/ace/standard/976/" in _hi_res("https://ichef.bbci.co.uk/ace/standard/240/abc.jpg")
+from publish import _story_block
+b = _story_block(1, {"title": "T", "link": "http://x", "source": "BBC Top",
+                     "outlet": "BBC Top", "pillar": "geopolitics"},
+                 {"http://x": "S"}, {})
+assert "**BBC Top**" in b, b
 print("hygiene tests passed")
 sys.exit(1 if fails else 0)

@@ -207,7 +207,20 @@ OUTLET_FLAGS = {
     "RT News": "🇷🇺", "rtnews": "🇷🇺", "SputnikInt": "🇷🇺",
     "Daily Monitor": "🇺🇬", "New Vision": "🇺🇬", "NilePost": "🇺🇬",
     "ChimpReports": "🇺🇬", "dailymonitor": "🇺🇬", "africaintel": "🌍",
+    "Goal": "🇬🇧", "LiveScore": "🇬🇧", "Premier League": "🇬🇧",
+    "BBC Sport": "🇬🇧", "Sky Sports": "🇬🇧", "Al Jazeera English": "🇶🇦",
 }
+
+def _flag_specific(it):
+    """True when the flag names a real place/company/outlet — not a pillar fallback."""
+    text = _item_text(it)
+    for _, words in FLAG_RULES:
+        if any(_hit_pos(text, w) is not None for w in words):
+            return True
+    for company in COMPANY_FLAGS:
+        if _hit_pos(text, company) is not None:
+            return True
+    return (it.get("outlet") or it.get("source") or "") in OUTLET_FLAGS
 
 def _word_hit(text, word):
     """Short tokens match whole-word only ('nio' must not fire on 'opinion');
@@ -261,11 +274,15 @@ def story_topic(it, category=None):
 
 def story_emoji(it, category=None):
     """Full story icon: flag + topic (e.g. 🇩🇪✈️). Topic collapses when it
-    repeats the flag (no 🎬🎬). Flag alone if no topic."""
+    repeats the flag (no 🎬🎬). When the flag is only a generic-pillar
+    fallback, the topic stands alone (⚽, not 🎬⚽) — except the home-region
+    pillar, whose flag is identity (🇺🇬🌱)."""
     flag = story_flag(it)
     topic = story_topic(it, category)
     if topic and topic != flag:
-        return flag + topic
+        if _flag_specific(it) or it.get("pillar") == "uganda":
+            return flag + topic
+        return topic
     return flag
 
 def _api(token, method, payload, timeout=25):
@@ -305,18 +322,53 @@ def _story_block(num, it, summaries, categories=None):
     s = summaries.get(it["link"], it["title"])
     cat = (categories or {}).get(it["link"])
     corr = " ✅ 2 sources" if it.get("_corroborated") else ""
-    src = f" — {_outlet(it)}" if not it.get("via_channel") else f" — via @{it['source']}"
+    if it.get("via_channel"):
+        src = f" — via **@{esc(_clean(it['source']))}**"
+    else:
+        src = f" — **{esc(_clean(_outlet(it)))}**"
     return (f"{num}. {story_emoji(it, cat)} *{esc(_clean(it['title']))}*{esc(corr)}\n"
-            f"   {esc(_clean(cut_words(s, 200)))}{esc(src)} [link]({it['link']})\n")
+            f"   {esc(_clean(cut_words(s, 200)))}{src} [link]({it['link']})\n")
+
+def _hi_res(url):
+    """Upgrade known thumbnail patterns to larger variants."""
+    u = url or ""
+    # BBC iChef: /ace/standard/240/ (tiny) -> 976 (large). Same for /ws/ sizes.
+    u = re.sub(r"/ace/standard/\d+/", "/ace/standard/976/", u)
+    u = re.sub(r"/ace/ws/\d+/", "/ace/ws/976/", u)
+    return u
+
+_SKIP_IMG = ("pixel", "1x1", "spacer", "blank", "transparent", "placeholder")
+
+def _img_ok(url, timeout=10):
+    try:
+        r = requests.head(url, timeout=timeout, allow_redirects=True,
+                          headers={"User-Agent": "NewsRoomBot/1.0"})
+        ct = (r.headers.get("Content-Type", "") or "").lower()
+        return r.status_code == 200 and ("image" in ct or "octet" in ct or ct == "")
+    except Exception:
+        return False
+
+def resolve_image(url):
+    """Return a validated, preferably hi-res image URL, or ''."""
+    if not url or any(s in url.lower() for s in _SKIP_IMG):
+        return ""
+    big = _hi_res(url)
+    if big != url and _img_ok(big):
+        return big
+    return url if _img_ok(url) else ""
 
 def pick_hero(items):
-    """Prefer images from wires with reliable hotlinking, else first available."""
+    """Prefer images from wires with reliable hotlinking, else first available.
+    Upgrades to hi-res and HEAD-validates so we never post pixelated/broken heroes."""
     trusted = ("BBC", "CNA", "SCMP", "RT", "NHK", "CoinDesk", "Cointelegraph",
                "Telegraph", "AlJazeera", "africaintel", "BellumActaNews")
-    for it in items:
-        if it.get("image") and str(it.get("source", "")).startswith(trusted):
-            return it["image"]
-    return next((it.get("image", "") for it in items if it.get("image")), "")
+    ordered = sorted(items, key=lambda it: not str(it.get("source", "")).startswith(trusted))
+    for it in ordered:
+        if it.get("image"):
+            good = resolve_image(it["image"])
+            if good:
+                return good
+    return ""
 
 def build_digest_chunks(slot_label, date_label, items, summaries, categories=None,
                         digest_title="NEWSROOM", header_emoji="🌍", pillars=None,
@@ -370,9 +422,12 @@ def build_breaking(items, summaries, categories=None):
     for it in items:
         s = summaries.get(it["link"], it["title"])
         cat = (categories or {}).get(it["link"])
-        src = f" — {_outlet(it)}" if not it.get("via_channel") else f" — via @{it['source']}"
+        if it.get("via_channel"):
+            src = f" — via **@{esc(_clean(it['source']))}**"
+        else:
+            src = f" — **{esc(_clean(_outlet(it)))}**"
         lines.append(f"{story_emoji(it, cat)} *{esc(_clean(it['title']))}*\n"
-                     f"   {esc(_clean(cut_words(s, 200)))}{esc(src)} [link]({it['link']})\n")
+                     f"   {esc(_clean(cut_words(s, 200)))}{src} [link]({it['link']})\n")
         n += 1
     lines.append("_Developing story • verify via links • via NewsRoom_")
     text = "\n".join(lines)

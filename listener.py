@@ -14,6 +14,7 @@ def _clean_text(text):
     (e.g. '🇮🇷 🪖 🇮🇷 💥 - Headline' -> 'Headline')."""
     urls = URL_RE.findall(text or "")
     text = URL_RE.sub(" ", text or "")
+    text = re.sub(r"[\u200b-\u200f\u2060-\u2064\ufeff]", "", text)  # invisible chars FIRST
     text = re.sub(r"\(\s*\)", "", text)  # leftover empty parens after URL strip
     text = re.sub(r"\s+", " ", text).strip()
     m = LEAD_OUTLET_RE.match(text)
@@ -21,7 +22,14 @@ def _clean_text(text):
         text = m.group(3).strip().rstrip(")")
     # strip leading non-alphanumeric decor (flags, bullets, dashes)
     text = re.sub(r"^[^A-Za-z0-9(\[]+", "", text).strip()
-    return text, urls
+    text = re.sub(r"^[\(\[]+[^A-Za-z0-9(\[]*", "", text).strip()
+    # orphan closing paren left by the strips above ("bank ) The..." -> "bank The...")
+    io, ic = text.find("("), text.find(")")
+    if ic != -1 and (io == -1 or ic < io):
+        text = (text[:ic] + text[ic + 1:]).strip()
+    if "(" not in text:
+        text = text.rstrip(")").strip()
+    return re.sub(r"\s+", " ", text).strip(), urls
 
 def _cut_words(text, limit=180):
     text = (text or "").strip()

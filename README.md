@@ -20,7 +20,7 @@ with breaking-news alerts in between. No server, no paid APIs, no babysitting.
   **offline fallback**, so the bot never dies if the key/quota fails.
 - 📰 **Posts two digests per slot** to your channel:
   - 🌍 `NEWSROOM` — your region + world/geopolitics
-  - 💻 `NEWSROOM+` — tech, crypto/finance, entertainment/sport
+  - ⚡ `NEWSROOM+` — tech, crypto/finance, entertainment/sport
 - 🚨 **Breaking gate**: posts instantly only if 2+ independent sources report
   the same event within 90 min (or a trusted wire says BREAKING) — max 2/run.
 - 🏳️ Stories carry **country-flag icons** (deterministic keyword map) and
