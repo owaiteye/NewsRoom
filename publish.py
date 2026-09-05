@@ -269,9 +269,20 @@ def story_emoji(it, category=None):
     return flag
 
 def _api(token, method, payload, timeout=25):
-    r = requests.post(API.format(token=token, method=method), json=payload, timeout=timeout)
-    r.raise_for_status()
-    return r.json()
+    """Bot-API call. Redacts the token from any error (tokens must never
+    reach logs, and we print exceptions in several places)."""
+    try:
+        r = requests.post(API.format(token=token, method=method), json=payload, timeout=timeout)
+        r.raise_for_status()
+        return r.json()
+    except Exception as ex:
+        msg = str(ex).replace(token, "<redacted-token>")
+        raise RuntimeError(f"telegram/{method}: {msg}") from None
+
+def _plain(text):
+    """Strip Markdown markers for the plain-text fallback send."""
+    t = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text or "")
+    return t.replace("*", "").replace("_", "").replace("`", "")
 
 def _clean(text):
     text = _html.unescape(text or "")
@@ -394,7 +405,15 @@ def send_digest(channel, token, caption, chunks, hero_image="", dry_run=False, j
                    "parse_mode": "Markdown", "disable_web_page_preview": False}
         if join_url and i == len(chunks) - 1:
             payload["reply_markup"] = _join_button(join_url)
-        sent.append(_api(token, "sendMessage", payload))
+        try:
+            sent.append(_api(token, "sendMessage", payload))
+        except Exception as ex:
+            # Unbalanced markdown (or any API hiccup) must not kill the run:
+            # retry once as plain text.
+            print(f"markdown send failed ({ex}), retrying plain text")
+            payload.pop("parse_mode", None)
+            payload["text"] = _plain(c)
+            sent.append(_api(token, "sendMessage", payload))
     return {"ok": True, "messages": len(sent)}
 
 def send_breaking(channel, token, chunks, hero_image="", dry_run=False, join_url=None):
@@ -416,5 +435,11 @@ def send_breaking(channel, token, chunks, hero_image="", dry_run=False, join_url
                    "parse_mode": "Markdown", "disable_web_page_preview": False}
         if join_url and i == len(chunks) - 1:
             payload["reply_markup"] = _join_button(join_url)
-        _api(token, "sendMessage", payload)
+        try:
+            _api(token, "sendMessage", payload)
+        except Exception as ex:
+            print(f"breaking send failed ({ex}), retrying plain text")
+            payload.pop("parse_mode", None)
+            payload["text"] = _plain(c)
+            _api(token, "sendMessage", payload)
     return {"ok": True}

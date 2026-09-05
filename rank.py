@@ -32,7 +32,7 @@ def reclassify(items):
             continue
         if it.get("via_channel"):
             continue  # keep curated channel pillar otherwise
-        if it.get("pillar") == "uganda" and not any(w in t for w in UGANDA_WORDS):
+        if it.get("pillar") == "uganda" and not any(_word_hit(t, w) for w in UGANDA_WORDS):
             # region-query item with no Uganda hook (e.g. SA rugby) -> world
             it["pillar"] = "geopolitics"
 
@@ -51,10 +51,10 @@ def score_items(items):
         s = recency + min(3, it.get("trust", 3) - 1)
         text = _norm(it["title"] + " " + it.get("summary", ""))
         for kw_list in PILLAR_KEYWORDS.values():
-            if any(k in text for k in kw_list):
+            if any(_word_hit(text, k) for k in kw_list):
                 s += 1
                 break
-        if any(k in text for k in ["breaking", "urgent", "coup", "explosion", "earthquake"]):
+        if any(_word_hit(text, k) for k in ["breaking", "urgent", "coup", "explosion", "earthquake"]):
             s += 2
         it["_score"] = s
     # corroboration: similar title from a DIFFERENT source (pairwise, top-80 only for speed).

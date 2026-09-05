@@ -92,10 +92,11 @@ def main():
         summaries, categories = summarize_all(picks)
         chunks = build_breaking(picks, summaries, categories)
         hero = next((it.get("image", "") for it in picks if it.get("image")), "")
-        if not args.dry_run:
-            mark_seen(picks, state); save_state(state)
         send_breaking(channel, token, chunks, hero_image=hero,
                       dry_run=args.dry_run, join_url=brand["demo_link"])
+        if not args.dry_run:
+            # marked AFTER a successful send: a failed run retries next time
+            mark_seen(picks, state); save_state(state)
         print(f"breaking: posted {len(picks)}")
         return
 
@@ -114,10 +115,10 @@ def main():
             digest_title=g["title"], header_emoji=g["emoji"],
             pillars=g["pillars"], footer=brand["footer"])
         hero = pick_hero(g_items)
-        if not args.dry_run:
-            mark_seen(g_items, state)
         send_digest(channel, token, caption, chunks, hero_image=hero,
                     dry_run=args.dry_run, join_url=brand["demo_link"])
+        if not args.dry_run:
+            mark_seen(g_items, state)
         print(f"digest {g['title']}: posted {len(g_items)} stories in {len(chunks)} text messages")
     if not args.dry_run:
         save_state(state)

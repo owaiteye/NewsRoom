@@ -24,7 +24,9 @@ jobs:
           API_ID: ${{ secrets.API_ID }}
           API_HASH: ${{ secrets.API_HASH }}
         run: python main.py --mode breaking-only
-      - run: |
+      - name: Persist dedupe state (7-day window)
+        if: always()
+        run: |
           git config user.name "newsroom-bot"
           git config user.email "newsroom-bot@users.noreply.github.com"
           git add -f state.json || true

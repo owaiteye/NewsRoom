@@ -16,7 +16,7 @@ PROMO_PATTERNS = (
 
 def _is_promo(title, link):
     t = (title or "").strip().lower()
-    if len(t) < 25:
+    if len(t) < 15:
         return True
     return any(p in t for p in PROMO_PATTERNS)
 
@@ -37,7 +37,7 @@ def clean_title(title, outlet):
 
 def _parse_feed(url, name, pillar, trust):
     try:
-        resp = requests.get(url, headers=UA, timeout=20)
+        resp = requests.get(url, headers=UA, timeout=TIMEOUT)
         resp.raise_for_status()
         fp = feedparser.parse(resp.content)
         items = []

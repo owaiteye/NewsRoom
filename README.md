@@ -43,6 +43,7 @@ GitHub Actions (cron, ~540/2000 free min/month)
 ### 1. Telegram bot
 1. Chat with **BotFather** → `/newbot` → save the token.
 2. Add the bot as **Administrator** of your channel (only needs *Post Messages*).
+3. Want to see a working example first? Join [@generalintel](https://t.me/generalintel) — it runs this exact bot.
 
 ### 2. Free Gemini key (optional but recommended)
 1. Go to **Google AI Studio** → create an API key (free, no card).

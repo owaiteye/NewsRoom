@@ -47,6 +47,8 @@ def _gemini_polish(title, summary):
     last_err = "no-model-tried"
     for model in GEMINI_MODELS:
         try:
+            # NOTE: the API key lives in the URL query string. Never let the
+            # raw exception (which echoes the URL) propagate to logs.
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
             r = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=20)
             r.raise_for_status()
@@ -64,7 +66,8 @@ def _gemini_polish(title, summary):
                     text = ln.split(":", 1)[1].strip().strip('"')
             return cat, text[:220]
         except Exception as ex:
-            last_err = f"{model}: {ex}"
+            # Sanitized on purpose: str(ex) may contain the request URL w/ key.
+            last_err = f"{model}: {type(ex).__name__}"
     raise RuntimeError(last_err)
 
 def summarize_item(title, summary, outlet=""):

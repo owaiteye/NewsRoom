@@ -81,7 +81,11 @@ def fetch_channel_posts(limit_per_channel=8, max_total=200):
                     if len(items) >= max_total:
                         break
             except Exception as ex:
-                print(f"listener: {ch} failed: {ex}")
+                # FloodWait means "slow down": stop pulling more channels this run.
+                print(f"listener: {ch} failed: {str(ex)[:120]}")
+                if "flood" in str(ex).lower() or "wait" in str(type(ex).__name__).lower():
+                    print("listener: rate-limited, stopping early (retries next run)")
+                    break
             if len(items) >= max_total:
                 break
     print(f"listener: collected {len(items)} posts from Telegram channels.")
