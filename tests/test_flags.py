@@ -49,12 +49,15 @@ FLAG_CASES = [
 ]
 
 TOPIC_CASES = [
-    # (title, category, expected_topic_or_flag_prefix)
-    ("Boeing opens new plant in Berlin", None, "🇩🇪✈️"),
-    ("Palantir drones deployed in Ukraine", None, "🇺🇦🤖"),
-    ("SpaceX launches Starlink batch", "space", "🇺🇸🚀"),
-    ("SpaceX launches Starlink batch", None, "🇺🇸🚀"),
-    ("Egypt sentences presenter in drugs case", "justice", "🇪🇬⚖️"),
+    # (title, category, expected icon prefix, pillar)
+    ("Boeing opens new plant in Berlin", None, "🇩🇪✈️", "geopolitics"),
+    ("Palantir drones deployed in Ukraine", None, "🇺🇦🤖", "geopolitics"),
+    ("SpaceX launches Starlink batch", "space", "🇺🇸🚀", "geopolitics"),
+    ("SpaceX launches Starlink batch", None, "🇺🇸🚀", "geopolitics"),
+    ("Egypt sentences presenter in drugs case", "justice", "🇪🇬⚖️", "geopolitics"),
+    ("What does it take to build a successful cattle farm", "agriculture", "🇺🇬🌱", "uganda"),
+    ("Isingiro, Rukungiri to get improved power supply", "agriculture", "🇺🇬🌱", "uganda"),
+    ("Drought-hit women in Agago receive food relief", "agriculture", "🇺🇬🌱", "uganda"),
 ]
 
 fails = 0
@@ -65,8 +68,8 @@ for title, summary, pillar, want in FLAG_CASES:
         print(f"FLAG FAIL: {got} != {want} | {title[:60]}")
         fails += 1
 
-for title, cat, want in TOPIC_CASES:
-    it = {"title": title, "summary": "", "pillar": "geopolitics",
+for title, cat, want, pillar in TOPIC_CASES:
+    it = {"title": title, "summary": "", "pillar": pillar,
           "source": "test", "outlet": "test"}
     got = story_emoji(it, cat)
     if not got.startswith(want):

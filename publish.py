@@ -196,7 +196,7 @@ CATEGORY_EMOJI = {
     "space": "🚀", "ai": "🤖", "crypto": "🪙", "markets": "📈",
     "football": "⚽", "sport": "🏅", "film": "🎬", "gaming": "🎮",
     "health": "🦠", "politics": "🏛️", "diplomacy": "🤝", "justice": "⚖️",
-    "business": "💼", "other": "",
+    "business": "💼", "agriculture": "🌱", "other": "",
 }
 CATEGORIES = sorted(k for k in CATEGORY_EMOJI if k != "other") + ["other"]
 

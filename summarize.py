@@ -31,7 +31,7 @@ GEMINI_MODELS = (
 
 CATEGORY_CHOICES = ("conflict, aviation, naval, explosion, space, ai, crypto, "
                     "markets, football, sport, film, gaming, health, politics, "
-                    "diplomacy, justice, business, other")
+                    "diplomacy, justice, business, agriculture, other")
 
 def _gemini_polish(title, summary):
     """Returns (category|None, one-line summary). Same single free call."""
