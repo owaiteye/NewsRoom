@@ -8,7 +8,12 @@ from collector import collect
 from dedupe import load_state, save_state, dedupe, mark_seen
 from rank import score_items, pick_digest, pick_breaking, reclassify
 from summarize import summarize_item
-from publish import build_digest_chunks, build_breaking, send_digest, send_breaking
+from publish import build_digest_chunks, build_breaking, send_digest, send_breaking, pick_hero
+
+DIGEST_GROUPS = [
+    {"title": "NEWSROOM", "emoji": "🌍", "pillars": ["uganda", "geopolitics"], "limit": 8},
+    {"title": "NEWSROOM+", "emoji": "💻", "pillars": ["tech", "crypto", "entertainment"], "limit": 8},
+]
 
 EAT = datetime.timezone(datetime.timedelta(hours=3))
 SLOTS = {3: "06:00 EAT Morning Brief", 9: "12:00 EAT Midday",
@@ -68,17 +73,28 @@ def main():
         print(f"breaking: posted {len(picks)}")
         return
 
-    picks = pick_digest(scored, limit=14)
+    picks = pick_digest(scored, limit=16)
     if not picks:
         print("digest: nothing fresh, nothing to post.")
         return
     summaries = {it["link"]: summarize_item(it["title"], it.get("summary", ""), it.get("outlet", it.get("source", ""))) for it in picks}
-    caption, chunks = build_digest_chunks(slot_label(), date_label, picks, summaries)
-    hero = next((it.get("image", "") for it in picks if it.get("image")), "")
+    total = 0
+    for g in DIGEST_GROUPS:
+        g_items = [it for it in picks if it.get("pillar") in g["pillars"]][:g["limit"]]
+        if not g_items:
+            print(f"digest {g['title']}: empty, skipped")
+            continue
+        caption, chunks = build_digest_chunks(
+            slot_label(), date_label, g_items, summaries,
+            digest_title=g["title"], header_emoji=g["emoji"], pillars=g["pillars"])
+        hero = pick_hero(g_items)
+        if not args.dry_run:
+            mark_seen(g_items, state)
+        send_digest(channel, token, caption, chunks, hero_image=hero, dry_run=args.dry_run)
+        total += len(g_items)
+        print(f"digest {g['title']}: posted {len(g_items)} stories in {len(chunks)} text messages")
     if not args.dry_run:
-        mark_seen(picks, state); save_state(state)
-    send_digest(channel, token, caption, chunks, hero_image=hero, dry_run=args.dry_run)
-    print(f"digest: posted {len(picks)} stories in {len(chunks)} text messages")
+        save_state(state)
 
 if __name__ == "__main__":
     main()

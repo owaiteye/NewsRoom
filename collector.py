@@ -21,7 +21,9 @@ def _is_promo(title, link):
 
 def _parse_feed(url, name, pillar, trust):
     try:
-        fp = feedparser.parse(url, request_headers=UA)
+        resp = requests.get(url, headers=UA, timeout=20)
+        resp.raise_for_status()
+        fp = feedparser.parse(resp.content)
         items = []
         for e in (fp.entries or [])[:30]:
             link = (getattr(e, "link", "") or "").strip()
@@ -66,20 +68,27 @@ def gnews_url(query):
     return f"https://news.google.com/rss/search?q={q}&hl=en-UG&gl=UG&ceid=UG:en"
 
 def collect(sources):
-    all_items, errors = [], []
+    from concurrent.futures import ThreadPoolExecutor
+    jobs = []
     for s in sources.get("direct_rss", []):
-        items, err = _parse_feed(s["url"], s["name"], s["pillar"], s.get("trust", 3))
-        all_items += items
-        if err:
-            errors.append(err)
+        jobs.append(("direct", s["url"], s["name"], s["pillar"], s.get("trust", 3)))
     for g in sources.get("gnews_queries", []):
-        items, err = _parse_feed(gnews_url(g["query"]), g["name"], g["pillar"], g.get("trust", 3))
-        # tag provenance so digest can show real outlet when possible
-        for it in items:
-            it["via"] = "Google News"
-        all_items += items
-        if err:
-            errors.append(err)
+        jobs.append(("gnews", gnews_url(g["query"]), g["name"], g["pillar"], g.get("trust", 3)))
+
+    def _one(job):
+        kind, url, name, pillar, trust = job
+        items, err = _parse_feed(url, name, pillar, trust)
+        if kind == "gnews":
+            for it in items:
+                it["via"] = "Google News"
+        return items, err
+
+    all_items, errors = [], []
+    with ThreadPoolExecutor(max_workers=12) as ex:
+        for items, err in ex.map(_one, jobs):
+            all_items += items
+            if err:
+                errors.append(err)
     # newest first
     all_items.sort(key=lambda x: x.get("ts", 0), reverse=True)
     return all_items, errors

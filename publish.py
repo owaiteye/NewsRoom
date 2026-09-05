@@ -37,22 +37,32 @@ EMOJI_RULES = [
     ("🌊", ("flood", "tsunami", "hurricane", "typhoon")),
     ("🔥", ("wildfire", "fire ", "burning", "inferno")),
     ("⚰️", ("funeral", "coffin", "burial")),
-    ("🪖", ("war ", "troops", "army", "military", "soldiers", "battle ", "coup", "ceasefire", "invasion")),
+    ("🪖", ("war ", "troops", "army", "military", "soldiers", "battle ", "coup ", "coups", "ceasefire", "invasion")),
     ("🚀", ("spacex", "rocket", "satellite", "nasa", "moon mission", "mars")),
     ("🤖", (" ai ", "artificial intelligence", "chatbot", "openai", "robot")),
     ("📱", ("iphone", "smartphone", "android phone", "pixel ")),
     ("🪙", ("bitcoin", "crypto", "ethereum", "binance", "etf")),
-    ("📈", ("stock", "market", "economy", "inflation", "trade deal", "investment")),
+    ("📈", ("stock", "market", "economy", "inflation", "trade deal", "investment", "debt", "deficit", "recession", "gdp")),
     ("🛢️", ("oil", "opec", "gas price", "pipeline")),
     ("🗳️", ("election", "vote", "ballot", "referendum")),
     ("🏛️", ("parliament", "senate", "congress", "president", "minister", "government")),
-    ("✊", ("protest", "demonstration", "riot", "strike ")),
+    ("✊", ("protest", "demonstration", "riot", "strike ", "rally ")),
+    ("🚧", ("blockade", "migrant", "deportation", "border closure", "asylum")),
     ("🤝", ("summit", "peace deal", "agreement signed", "diplomacy")),
     ("⚽", ("premier league", "football", "soccer", "champions league", "transfer")),
     ("🏉", ("rugby",)),
     ("🏏", ("cricket",)),
     ("🏀", ("basketball", "nba")),
-    ("🎮", ("game ", "gaming", "playstation", "xbox", "nintendo")),
+    ("👑", ("pageant", "miss universe", "miss world", "runway", "fashion week",
+             "king ", "queen ", "royal ", "monarch", "prince ", "princess ")),
+    ("🏅", ("victor", "win ", "wins ", "champion", "title ", "trophy", "tournament",
+             "match ", "race ", "stage ", "jersey", "defeat", "draw ",
+             "olympic", "marathon", "cycling", "vuelta", "inter-forces")),
+    ("🏎️", ("formula 1", "grand prix", "monza", "qualifying", "pole position",
+              "verstappen", "hamilton", " f1 ")),
+    ("🎮", ("video game", "games industry", "game studio", "game developer",
+             "gaming", "playstation", "xbox", "nintendo", "pc gamer",
+             "gta", "rockstar", "call of duty", "fortnite", "minecraft")),
     ("🎬", ("trailer", "movie", "film", "netflix", "premiere", "box office", "season ")),
     ("🎵", ("concert", "album", "music", "festival")),
     ("🦠", ("ebola", "virus", "outbreak", "covid", "epidemic", "vaccine")),
@@ -100,10 +110,20 @@ def _story_block(num, it, summaries):
     return (f"{num}. {story_emoji(it)} *{esc(_clean(it['title']))}*{esc(corr)}\n"
             f"   {esc(_clean(cut_words(s, 200)))}{esc(src)} [link]({it['link']})\n")
 
-def build_digest_chunks(slot_label, date_label, items, summaries):
-    header = (f"🌍 *NEWSROOM — {esc(slot_label)} | {esc(date_label)}*\n"
+def pick_hero(items):
+    """Prefer images from wires with reliable hotlinking, else first available."""
+    trusted = ("BBC", "CNA", "SCMP", "RT", "NHK", "CoinDesk", "Cointelegraph",
+               "Telegraph", "AlJazeera", "africaintel", "BellumActaNews")
+    for it in items:
+        if it.get("image") and str(it.get("source", "")).startswith(trusted):
+            return it["image"]
+    return next((it.get("image", "") for it in items if it.get("image")), "")
+
+def build_digest_chunks(slot_label, date_label, items, summaries,
+                        digest_title="NEWSROOM", header_emoji="🌍", pillars=None):
+    header = (f"{header_emoji} *{digest_title} — {esc(slot_label)} | {esc(date_label)}*\n"
               f"_{len(items)} stories • links included_\n")
-    order = ["uganda", "geopolitics", "tech", "crypto", "entertainment"]
+    order = list(pillars) if pillars else ["uganda", "geopolitics", "tech", "crypto", "entertainment"]
     grouped = {p: [] for p in order}
     for it in items:
         grouped.setdefault(it.get("pillar", "geopolitics"), []).append(it)
@@ -130,7 +150,7 @@ def build_digest_chunks(slot_label, date_label, items, summaries):
     first = top[0] if top else items[0]
     caption = (header + f"\n🔥 *TOP STORY*\n" +
                _story_block(1, first, summaries) +
-               f"\n_Full {len(items)}-story digest in next message _")
+               f"\n_Full {len(items)}-story digest in next message(s) _")
     caption = cut_words(caption, 950)
 
     # chunk body into messages
@@ -138,7 +158,7 @@ def build_digest_chunks(slot_label, date_label, items, summaries):
     for b in body_blocks:
         if len(cur) + len(b) > CHUNK:
             chunks.append(cur)
-            cur = f"_(cont.) {esc(slot_label)}_\n\n"
+            cur = f"_(cont. {esc(digest_title)} {esc(slot_label)})_\n\n"
         cur += b + "\n"
     if cur.strip():
         chunks.append(cur)
