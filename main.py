@@ -11,8 +11,8 @@ from summarize import summarize_item
 from publish import build_digest_chunks, build_breaking, send_digest, send_breaking, pick_hero
 
 EAT = datetime.timezone(datetime.timedelta(hours=3))
-SLOTS = {3: "06:00 EAT Morning Brief", 9: "12:00 EAT Midday",
-         15: "18:00 EAT Evening", 21: "00:00 EAT Night Wrap"}
+SLOTS = {3: "Morning Wrap", 9: "Afternoon Wrap",
+         15: "Evening Wrap", 21: "Night Wrap"}
 
 DEFAULT_BRANDING = {
     "digest_a_title": "NEWSROOM", "digest_a_emoji": "🌍",
