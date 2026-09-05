@@ -16,22 +16,30 @@ def _extractive(title, summary, max_words=28):
         out = " ".join(words[:max_words]) + "…"
     return out or title.strip()
 
+GEMINI_MODELS = (
+    "gemini-3.5-flash-lite",  # cheapest, biggest free quota — primary
+    "gemini-3.6-flash",       # fallback if lite unavailable
+)
+
 def _gemini_polish(title, summary):
     key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not key:
         raise RuntimeError("no-key")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={key}"
     prompt = (
         "Summarize this news in ONE line, under 25 words, plain, no hype, no emoji. "
         f"Title: {title}\nSnippet: {(summary or '')[:600]}"
     )
-    r = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=15)
-    r.raise_for_status()
-    data = r.json()
-    try:
-        return data["candidates"][0]["content"]["parts"][0]["text"].strip().strip('"')
-    except Exception as ex:
-        raise RuntimeError(f"bad-response: {ex}")
+    last_err = "no-model-tried"
+    for model in GEMINI_MODELS:
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
+            r = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=15)
+            r.raise_for_status()
+            data = r.json()
+            return data["candidates"][0]["content"]["parts"][0]["text"].strip().strip('"')[:220]
+        except Exception as ex:
+            last_err = f"{model}: {ex}"
+    raise RuntimeError(last_err)
 
 def summarize_item(title, summary):
     try:
