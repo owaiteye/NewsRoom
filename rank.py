@@ -2,6 +2,8 @@
 import re
 import time
 
+from publish import _word_hit
+
 PILLAR_KEYWORDS = {
     "uganda": ["uganda", "kampala", "museveni", "parliament", "updf", "shilling", "entebbe"],
     "geopolitics": ["gaza", "ukraine", "coup", "summit", "sanctions", "ceasefire", "election"],
@@ -21,14 +23,16 @@ ENT_WORDS = ("league", "cup", "match", "victory", "win ", "wins", "beats", "seri
              "box office", "premiere", "season", "netflix", "episode", "rugby", "cricket")
 
 def reclassify(items):
-    """Fix pillar for items from generic feeds (CNA, BBC Top, GNews region queries)."""
+    """Fix pillar for items from generic feeds (CNA, BBC Top, GNews region queries)
+    AND Telegram forwards (a geopolitics channel often posts sport/entertainment)."""
     for it in items:
-        if it.get("via_channel"):
-            continue  # listener already sets pillar per channel
         t = _norm(it["title"] + " " + it.get("summary", ""))
-        if any(w in t for w in ENT_WORDS):
+        if any(_word_hit(t, w) for w in ENT_WORDS):
             it["pillar"] = "entertainment"
-        elif it.get("pillar") == "uganda" and not any(w in t for w in UGANDA_WORDS):
+            continue
+        if it.get("via_channel"):
+            continue  # keep curated channel pillar otherwise
+        if it.get("pillar") == "uganda" and not any(w in t for w in UGANDA_WORDS):
             # region-query item with no Uganda hook (e.g. SA rugby) -> world
             it["pillar"] = "geopolitics"
 

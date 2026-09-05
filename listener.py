@@ -3,8 +3,28 @@ Only runs when API_ID/API_HASH/SESSION_STRING are set. Never posts as you.
 V1 runs fine without it (RSS + Google News only).
 """
 import os
+import re
 
-def fetch_channel_posts(limit_per_channel=30, max_total=120):
+URL_RE = re.compile(r"https?://\S+")
+LEAD_OUTLET_RE = re.compile(r"^([A-Z][\w&.\-]*(\s+[A-Z][\w&.\-]*)*)\s*\((.+)\)\s*$")
+
+def _clean_text(text):
+    """Drop raw URLs (we keep the first as the link) and unwrap 'Outlet (Headline)'."""
+    urls = URL_RE.findall(text or "")
+    text = URL_RE.sub(" ", text or "")
+    text = re.sub(r"\s+", " ", text).strip()
+    m = LEAD_OUTLET_RE.match(text)
+    if m:
+        text = m.group(3).strip().rstrip(")")
+    return text, urls
+
+def _cut_words(text, limit=180):
+    text = (text or "").strip()
+    if len(text) <= limit:
+        return text
+    return text[:limit].rsplit(" ", 1)[0].rstrip(" ,;:—-.") + "…"
+
+def fetch_channel_posts(limit_per_channel=8, max_total=200):
     api_id = os.environ.get("API_ID", "").strip()
     api_hash = os.environ.get("API_HASH", "").strip()
     session = os.environ.get("TELEGRAM_SESSION_STRING", "").strip()
@@ -30,8 +50,11 @@ def fetch_channel_posts(limit_per_channel=30, max_total=120):
             try:
                 msgs = client.get_messages(ch, limit=limit_per_channel)
                 for m in msgs or []:
-                    text = (m.text or "").strip()
-                    if len(text) < 40:
+                    raw = (m.text or "").strip()
+                    if len(raw) < 40:
+                        continue
+                    text, found_urls = _clean_text(raw)
+                    if len(text) < 30:
                         continue
                     # find first url or link message
                     url = None
@@ -41,10 +64,10 @@ def fetch_channel_posts(limit_per_channel=30, max_total=120):
                             if u:
                                 url = u
                                 break
-                    link = url or f"https://t.me/{ch}/{m.id}"
+                    link = url or (found_urls[0] if found_urls else None) or f"https://t.me/{ch}/{m.id}"
                     items.append({
-                        "title": text[:160].replace("\n", " "),
-                        "link": link, "summary": text[:500],
+                        "title": _cut_words(text, 180).replace("\n", " "),
+                        "link": link, "summary": _cut_words(text, 500),
                         "published": str(m.date), "ts": m.date.timestamp(),
                         "image": "", "source": ch,
                         "pillar": pillar_of.get(ch, "geopolitics"),

@@ -4,8 +4,11 @@ Layout per digest:
   msg 1: hero photo + SHORT caption (header + top story only, <=900 chars)
   msg 2..n: full digest split into <=3800-char chunks, blank line between stories
 Breaking: single text message, same chunking.
+Per-story icons are country flags (deterministic); section headings keep emojis.
 """
+import html as _html
 import os
+import re
 import requests
 
 API = "https://api.telegram.org/bot{token}/{method}"
@@ -26,60 +29,128 @@ PILLAR_TITLE = {
     "entertainment": "ENTERTAINMENT, SPORT & HEALTH",
 }
 
-# Topic-aware emoji rules: first match wins (ordered specific -> general).
-EMOJI_RULES = [
-    ("🐶", ("dog", "puppy", "puppies")),
-    ("🐱", ("cat", "kitten", "feline")),
-    ("🚢", ("warship", "navy", "shipyard", "submarine", "frigate", "destroyer")),
-    ("✈️", ("fighter jet", "aircraft crash", "airshow", "warplane", "airstrike", "drone attack")),
-    ("💥", ("explosion", "blast", "bombing", "missile strike", "airstrike")),
-    ("🏚️", ("earthquake",)),
-    ("🌊", ("flood", "tsunami", "hurricane", "typhoon")),
-    ("🔥", ("wildfire", "fire ", "burning", "inferno")),
-    ("⚰️", ("funeral", "coffin", "burial")),
-    ("🪖", ("war ", "troops", "army", "military", "soldiers", "battle ", "coup ", "coups", "ceasefire", "invasion")),
-    ("🚀", ("spacex", "rocket", "satellite", "nasa", "moon mission", "mars")),
-    ("🤖", (" ai ", "artificial intelligence", "chatbot", "openai", "robot")),
-    ("📱", ("iphone", "smartphone", "android phone", "pixel ")),
-    ("🪙", ("bitcoin", "crypto", "ethereum", "binance", "etf")),
-    ("📈", ("stock", "market", "economy", "inflation", "trade deal", "investment", "debt", "deficit", "recession", "gdp")),
-    ("🛢️", ("oil", "opec", "gas price", "pipeline")),
-    ("🗳️", ("election", "vote", "ballot", "referendum")),
-    ("🏛️", ("parliament", "senate", "congress", "president", "minister", "government")),
-    ("✊", ("protest", "demonstration", "riot", "strike ", "rally ")),
-    ("🚧", ("blockade", "migrant", "deportation", "border closure", "asylum")),
-    ("🤝", ("summit", "peace deal", "agreement signed", "diplomacy")),
-    ("⚽", ("premier league", "football", "soccer", "champions league", "transfer")),
-    ("🏉", ("rugby",)),
-    ("🏏", ("cricket",)),
-    ("🏀", ("basketball", "nba")),
-    ("👑", ("pageant", "miss universe", "miss world", "runway", "fashion week",
-             "king ", "queen ", "royal ", "monarch", "prince ", "princess ")),
-    ("🏅", ("victor", "win ", "wins ", "champion", "title ", "trophy", "tournament",
-             "match ", "race ", "stage ", "jersey", "defeat", "draw ",
-             "olympic", "marathon", "cycling", "vuelta", "inter-forces")),
-    ("🏎️", ("formula 1", "grand prix", "monza", "qualifying", "pole position",
-              "verstappen", "hamilton", " f1 ")),
-    ("🎮", ("video game", "games industry", "game studio", "game developer",
-             "gaming", "playstation", "xbox", "nintendo", "pc gamer",
-             "gta", "rockstar", "call of duty", "fortnite", "minecraft")),
-    ("🎬", ("trailer", "movie", "film", "netflix", "premiere", "box office", "season ")),
-    ("🎵", ("concert", "album", "music", "festival")),
-    ("🦠", ("ebola", "virus", "outbreak", "covid", "epidemic", "vaccine")),
-    ("🏥", ("hospital", "doctor", "surgery", "health study")),
-    ("🎓", ("school", "university", "exam", "student")),
-    ("💼", ("layoff", "job cut", "unemployment", "hiring freeze")),
-    ("⚖️", ("court", "sentenc", "jailed", "trial", "lawsuit", "probe", "arrest")),
+# Country-flag rules: first match wins. Specific names BEFORE general ones
+# ("south sudan" before "sudan", "equatorial guinea" before "guinea", ...).
+FLAG_RULES = [
+    ("🇺🇬", ("uganda", "kampala", "entebbe", "gulu", "museveni", "updf", "omukama", "ntv uganda", "new vision", "daily monitor", "nilepost", "softpower", "chimpreports", "ug diplomat", "radionetwork")),
+    ("🇰🇪", ("kenya", "nairobi", "ruto", "gachagua")),
+    ("🇹🇿", ("tanzania", "dodoma", "dar es salaam", "samia suluhu")),
+    ("🇷🇼", ("rwanda", "kigali", "kagame")),
+    ("🇨🇩", ("democratic republic of congo", "dr congo", "drc", "kinshasa")),
+    ("🇨🇬", ("republic of congo", "congo-brazzaville", "brazzaville")),
+    ("🇸🇸", ("south sudan", "juba")),
+    ("🇧🇮", ("burundi", "gitega", "bujumbura")),
+    ("🇿🇲", ("zambia", "lusaka")),
+    ("🇿🇼", ("zimbabwe", "harare")),
+    ("🇲🇼", ("malawi", "lilongwe")),
+    ("🇿🇦", ("south africa", "johannesburg", "pretoria", "cape town", "springboks")),
+    ("🇳🇬", ("nigeria", "lagos", "abuja", "tinubu")),
+    ("🇬🇭", ("ghana", "accra", "modern ghana")),
+    ("🇪🇬", ("egypt", "cairo", "sinai")),
+    ("🇪🇹", ("ethiopia", "addis ababa")),
+    ("🇸🇴", ("somalia", "mogadishu")),
+    ("🇸🇩", ("sudan", "khartoum")),
+    ("🇲🇦", ("morocco", "rabat", "casablanca")),
+    ("🇩🇿", ("algeria", "algiers")),
+    ("🇹🇳", ("tunisia", "tunis")),
+    ("🇱🇾", ("libya", "tripoli")),
+    ("🇬🇶", ("equatorial guinea", "obiang", "malabo")),
+    ("🇬🇳", ("guinea", "conakry")),
+    ("🇸🇳", ("senegal", "dakar")),
+    ("🇨🇲", ("cameroon", "yaounde")),
+    ("🇨🇮", ("ivory coast", "abidjan")),
+    ("🇲🇱", ("mali", "bamako")),
+    ("🇧🇫", ("burkina faso", "ouagadougou")),
+    ("🇳🇪", ("niger", "niamey")),
+    ("🇹🇩", ("chad", "n'djamena")),
+    ("🇦🇴", ("angola", "luanda")),
+    ("🇲🇿", ("mozambique", "maputo")),
+    ("🇺🇸", ("united states", "america", "washington", "white house", "pentagon", "cnn", "fox news", "witkoff", "us envoy", "u.s.", "us ")),
+    ("🇬🇧", ("britain", "united kingdom", "england", "london", "dover", "bbc", "telegraph", "sky sports", "man city", "arsenal", "chelsea", "aston villa", "coventry", "hull city")),
+    ("🇪🇺", ("european union", "brussels", "european commission")),
+    ("🇫🇷", ("france", "paris", "macron")),
+    ("🇩🇪", ("germany", "berlin", "bundestag", "leipzig")),
+    ("🇷🇺", ("russia", "moscow", "putin", "kremlin", "rt news")),
+    ("🇺🇦", ("ukraine", "kyiv", "zelensky", "yermak", "budanov")),
+    ("🇧🇾", ("belarus", "minsk", "lukashenko")),
+    ("🇵🇱", ("poland", "warsaw")),
+    ("🇬🇷", ("greece", "athens")),
+    ("🇹🇷", ("turkiye", "turkey", "ankara", "erdogan", "fenerbahce")),
+    ("🇮🇱", ("israel", "tel aviv", "netanyahu", "jerusalem")),
+    ("🇵🇸", ("palestine", "gaza", "west bank", "ramallah", "hamas")),
+    ("🇱🇧", ("lebanon", "beirut", "hezbollah")),
+    ("🇸🇾", ("syria", "damascus")),
+    ("🇾🇪", ("yemen", "taiz", "houthi", "sanaa", "aden")),
+    ("🇮🇷", ("iran", "tehran", "khamenei", "bagheri", "okati")),
+    ("🇮🇶", ("iraq", "baghdad")),
+    ("🇸🇦", ("saudi", "riyadh")),
+    ("🇦🇪", ("uae", "dubai", "abu dhabi", "emirates")),
+    ("🇶🇦", ("qatar", "doha", "al jazeera")),
+    ("🇴🇲", ("oman", "muscat")),
+    ("🇰🇼", ("kuwait",)),
+    ("🇧🇭", ("bahrain",)),
+    ("🇯🇴", ("jordan", "amman")),
+    ("🇨🇳", ("china", "beijing", "xinhua", "cgtn")),
+    ("🇹🇼", ("taiwan", "taipei")),
+    ("🇭🇰", ("hong kong", "scmp")),
+    ("🇯🇵", ("japan", "tokyo", "nhk")),
+    ("🇰🇵", ("north korea", "pyongyang", "kim jong")),
+    ("🇰🇷", ("south korea", "korea", "seoul")),
+    ("🇮🇳", ("india", "delhi", "mumbai", "modi")),
+    ("🇵🇰", ("pakistan", "islamabad", "karachi")),
+    ("🇧🇩", ("bangladesh", "dhaka")),
+    ("🇱🇰", ("sri lanka", "colombo")),
+    ("🇳🇵", ("nepal", "kathmandu")),
+    ("🇲🇲", ("myanmar", "burma", "naypyidaw", "yangon")),
+    ("🇹🇭", ("thailand", "bangkok")),
+    ("🇻🇳", ("vietnam", "hanoi")),
+    ("🇰🇭", ("cambodia", "phnom penh")),
+    ("🇮🇩", ("indonesia", "jakarta")),
+    ("🇲🇾", ("malaysia", "kuala lumpur")),
+    ("🇸🇬", ("singapore", "channelnewsasia")),
+    ("🇵🇭", ("philippines", "manila")),
+    ("🇦🇺", ("australia", "sydney", "canberra")),
+    ("🇳🇿", ("new zealand", "auckland", "wellington", "all blacks")),
+    ("🇨🇦", ("canada", "ottawa", "toronto")),
+    ("🇲🇽", ("mexico", "mexico city")),
+    ("🇧🇷", ("brazil", "brasilia", "sao paulo", "lula")),
+    ("🇦🇷", ("argentina", "buenos aires", "milei")),
+    ("🇧🇴", ("bolivia", "la paz", "viacha")),
+    ("🇨🇱", ("chile", "santiago")),
+    ("🇨🇴", ("colombia", "bogota")),
+    ("🇻🇪", ("venezuela", "caracas", "maduro")),
+    ("🇵🇪", ("peru", "lima")),
+    ("🇪🇨", ("ecuador", "quito")),
+    ("🇨🇺", ("cuba", "havana")),
+    ("🇪🇸", ("spain", "madrid", "barcelona", "hola", "vuelta", "la liga")),
 ]
+
+# Outlet origin fallback (used only when the text names no country).
+OUTLET_FLAGS = {
+    "BBC Africa": "🇬🇧", "BBC World": "🇬🇧", "BBC Top": "🇬🇧", "BBC Tech": "🇬🇧",
+    "Telegraph": "🇬🇧", "CNA": "🇸🇬", "SCMP": "🇭🇰", "NHK World": "🇯🇵",
+    "RT News": "🇷🇺", "rtnews": "🇷🇺", "SputnikInt": "🇷🇺",
+    "Daily Monitor": "🇺🇬", "New Vision": "🇺🇬", "NilePost": "🇺🇬",
+    "ChimpReports": "🇺🇬", "dailymonitor": "🇺🇬", "africaintel": "🌍",
+}
+
+def _word_hit(text, word):
+    """Short tokens match whole-word only ('nio' must not fire on 'opinion');
+    longer phrases use substring (they already carry context)."""
+    w = word.strip()
+    if len(w) <= 4:
+        return re.search(r"\b" + re.escape(w) + r"s?\b", text) is not None
+    return w in text
 
 def story_emoji(it):
     text = f" {(it.get('title') or '')} {(it.get('summary') or '')} ".lower()
-    for emoji, words in EMOJI_RULES:
-        if any(w in text for w in words):
-            return emoji
+    for flag, words in FLAG_RULES:
+        if any(_word_hit(text, w) for w in words):
+            return flag
+    outlet = (it.get("outlet") or it.get("source") or "")
+    if outlet in OUTLET_FLAGS:
+        return OUTLET_FLAGS[outlet]
     return PILLAR_EMOJI.get(it.get("pillar"), "📰")
-
-import html as _html
 
 def _api(token, method, payload, timeout=25):
     r = requests.post(API.format(token=token, method=method), json=payload, timeout=timeout)
