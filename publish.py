@@ -26,6 +26,49 @@ PILLAR_TITLE = {
     "entertainment": "ENTERTAINMENT, SPORT & HEALTH",
 }
 
+# Topic-aware emoji rules: first match wins (ordered specific -> general).
+EMOJI_RULES = [
+    ("🐶", ("dog", "puppy", "puppies")),
+    ("🐱", ("cat", "kitten", "feline")),
+    ("🚢", ("warship", "navy", "shipyard", "submarine", "frigate", "destroyer")),
+    ("✈️", ("fighter jet", "aircraft crash", "airshow", "warplane", "airstrike", "drone attack")),
+    ("💥", ("explosion", "blast", "bombing", "missile strike", "airstrike")),
+    ("🏚️", ("earthquake",)),
+    ("🌊", ("flood", "tsunami", "hurricane", "typhoon")),
+    ("🔥", ("wildfire", "fire ", "burning", "inferno")),
+    ("⚰️", ("funeral", "coffin", "burial")),
+    ("🪖", ("war ", "troops", "army", "military", "soldiers", "battle ", "coup", "ceasefire", "invasion")),
+    ("🚀", ("spacex", "rocket", "satellite", "nasa", "moon mission", "mars")),
+    ("🤖", (" ai ", "artificial intelligence", "chatbot", "openai", "robot")),
+    ("📱", ("iphone", "smartphone", "android phone", "pixel ")),
+    ("🪙", ("bitcoin", "crypto", "ethereum", "binance", "etf")),
+    ("📈", ("stock", "market", "economy", "inflation", "trade deal", "investment")),
+    ("🛢️", ("oil", "opec", "gas price", "pipeline")),
+    ("🗳️", ("election", "vote", "ballot", "referendum")),
+    ("🏛️", ("parliament", "senate", "congress", "president", "minister", "government")),
+    ("✊", ("protest", "demonstration", "riot", "strike ")),
+    ("🤝", ("summit", "peace deal", "agreement signed", "diplomacy")),
+    ("⚽", ("premier league", "football", "soccer", "champions league", "transfer")),
+    ("🏉", ("rugby",)),
+    ("🏏", ("cricket",)),
+    ("🏀", ("basketball", "nba")),
+    ("🎮", ("game ", "gaming", "playstation", "xbox", "nintendo")),
+    ("🎬", ("trailer", "movie", "film", "netflix", "premiere", "box office", "season ")),
+    ("🎵", ("concert", "album", "music", "festival")),
+    ("🦠", ("ebola", "virus", "outbreak", "covid", "epidemic", "vaccine")),
+    ("🏥", ("hospital", "doctor", "surgery", "health study")),
+    ("🎓", ("school", "university", "exam", "student")),
+    ("💼", ("layoff", "job cut", "unemployment", "hiring freeze")),
+    ("⚖️", ("court", "sentenc", "jailed", "trial", "lawsuit", "probe", "arrest")),
+]
+
+def story_emoji(it):
+    text = f" {(it.get('title') or '')} {(it.get('summary') or '')} ".lower()
+    for emoji, words in EMOJI_RULES:
+        if any(w in text for w in words):
+            return emoji
+    return PILLAR_EMOJI.get(it.get("pillar"), "📰")
+
 import html as _html
 
 def _api(token, method, payload, timeout=25):
@@ -54,7 +97,7 @@ def _story_block(num, it, summaries):
     s = summaries.get(it["link"], it["title"])
     corr = " ✅ 2 sources" if it.get("_corroborated") else ""
     src = f" — {_outlet(it)}" if not it.get("via_channel") else f" — via @{it['source']}"
-    return (f"{num}. {PILLAR_EMOJI.get(it.get('pillar'), '📰')} *{esc(_clean(it['title']))}*{esc(corr)}\n"
+    return (f"{num}. {story_emoji(it)} *{esc(_clean(it['title']))}*{esc(corr)}\n"
             f"   {esc(_clean(cut_words(s, 200)))}{esc(src)} [link]({it['link']})\n")
 
 def build_digest_chunks(slot_label, date_label, items, summaries):
@@ -107,7 +150,7 @@ def build_breaking(items, summaries):
     for it in items:
         s = summaries.get(it["link"], it["title"])
         src = f" — {_outlet(it)}" if not it.get("via_channel") else f" — via @{it['source']}"
-        lines.append(f"{PILLAR_EMOJI.get(it.get('pillar'), '📰')} *{esc(_clean(it['title']))}*\n"
+        lines.append(f"{story_emoji(it)} *{esc(_clean(it['title']))}*\n"
                      f"   {esc(_clean(cut_words(s, 200)))}{esc(src)} [link]({it['link']})\n")
         n += 1
     lines.append("_Developing story • verify via links • via NewsRoom_")
