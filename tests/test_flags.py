@@ -8,6 +8,8 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from publish import story_flag, story_topic, story_emoji
+from collector import normalize_outlet, clean_title
+from listener import _clean_text
 
 FLAG_CASES = [
     # (title, summary, pillar, expected_flag)
@@ -36,6 +38,14 @@ FLAG_CASES = [
     ("Saber CCO on games industry: a couple hundred employees", "", "entertainment", "🎬"),
     ("Delegation visits communication facilities", "", "geopolitics", "🌍"),
     ("All Blacks beat Springboks in thriller", "", "entertainment", "🇳🇿"),
+    # newly mapped countries + demonyms
+    ("Competitors dig deep at Hungarian gravedigging contest", "Gravediggers in Hungary competed", "geopolitics", "🇭🇺"),
+    ("Meloni unveils Italian budget plan in Rome", "", "geopolitics", "🇮🇹"),
+    ("Dutch parliament backs Amsterdam climate fund", "", "geopolitics", "🇳🇱"),
+    ("Boeing opens new plant in Berlin", "", "geopolitics", "🇩🇪"),
+    ("German chancellor visits Kyiv", "", "geopolitics", "🇩🇪"),
+    ("Zelensky hails Ukrainian advances", "", "geopolitics", "🇺🇦"),
+    ("Palantir drones deployed in Ukraine", "", "geopolitics", "🇺🇦"),
 ]
 
 TOPIC_CASES = [
@@ -64,4 +74,21 @@ for title, cat, want in TOPIC_CASES:
         fails += 1
 
 print(f"{len(FLAG_CASES) + len(TOPIC_CASES) - fails}/{len(FLAG_CASES) + len(TOPIC_CASES)} icon tests passed")
+
+# title/outlet hygiene
+t2, _ = _clean_text("🇮🇷 🪖 🇮🇷 💥 - Unconfirmed reports of explosions heard from Qeshm Island")
+assert t2 == "Unconfirmed reports of explosions heard from Qeshm Island", t2
+t3, u3 = _clean_text("Al Jazeera English (At least four killed near Taiz)(https://www.aljazeera.com/news/x)")
+assert t3 == "At least four killed near Taiz", t3
+assert u3 == ["https://www.aljazeera.com/news/x"], u3
+assert normalize_outlet("telegraph.co.uk", "q") == "Telegraph"
+assert normalize_outlet("NTV Uganda", "q") == "NTV Uganda"
+assert clean_title("Risk to UK security - Telegraph", "Telegraph") == "Risk to UK security"
+assert clean_title("Arsenal vs Chelsea: Preview, team news", "BBC Top") == "Arsenal vs Chelsea: Preview, team news"
+# topic collapses when identical to flag
+assert story_emoji({"title": "HBO drama review", "summary": "", "pillar": "entertainment",
+                    "source": "s", "outlet": "s"}, "film") == "🎬", story_emoji(
+    {"title": "HBO drama review", "summary": "", "pillar": "entertainment",
+     "source": "s", "outlet": "s"}, "film")
+print("hygiene tests passed")
 sys.exit(1 if fails else 0)

@@ -5,17 +5,22 @@ V1 runs fine without it (RSS + Google News only).
 import os
 import re
 
-URL_RE = re.compile(r"https?://\S+")
+URL_RE = re.compile(r"https?://[^\s)]+")
 LEAD_OUTLET_RE = re.compile(r"^([A-Z][\w&.\-]*(\s+[A-Z][\w&.\-]*)*)\s*\((.+)\)\s*$")
 
 def _clean_text(text):
-    """Drop raw URLs (we keep the first as the link) and unwrap 'Outlet (Headline)'."""
+    """Drop raw URLs (we keep the first as the link) and unwrap 'Outlet (Headline)'.
+    Also strip leading emoji/decoration prefixes source channels love
+    (e.g. '🇮🇷 🪖 🇮🇷 💥 - Headline' -> 'Headline')."""
     urls = URL_RE.findall(text or "")
     text = URL_RE.sub(" ", text or "")
+    text = re.sub(r"\(\s*\)", "", text)  # leftover empty parens after URL strip
     text = re.sub(r"\s+", " ", text).strip()
     m = LEAD_OUTLET_RE.match(text)
     if m:
         text = m.group(3).strip().rstrip(")")
+    # strip leading non-alphanumeric decor (flags, bullets, dashes)
+    text = re.sub(r"^[^A-Za-z0-9(\[]+", "", text).strip()
     return text, urls
 
 def _cut_words(text, limit=180):

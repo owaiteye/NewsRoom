@@ -1,4 +1,5 @@
 """Fetch + normalize items from direct RSS and Google News RSS. Tolerant of dead feeds."""
+import re
 import time
 import urllib.parse
 import feedparser
@@ -19,6 +20,21 @@ def _is_promo(title, link):
         return True
     return any(p in t for p in PROMO_PATTERNS)
 
+def normalize_outlet(outlet, fallback=""):
+    """Domains ('telegraph.co.uk') -> display names ('Telegraph')."""
+    outlet = (outlet or fallback or "").strip()
+    if re.match(r"^[\w-]+\.[\w.]+$", outlet or ""):
+        outlet = outlet.split(".")[0].replace("-", " ").title()
+    return outlet or fallback or "?"
+
+def clean_title(title, outlet):
+    """Drop a trailing ' - Outlet' tail (we render the outlet separately)."""
+    title = (title or "").strip()
+    if outlet and outlet.lower() not in ("google news", "?"):
+        title = re.sub(r"\s+[–—-]\s*" + re.escape(outlet) + r"\s*$",
+                       "", title, flags=re.IGNORECASE).strip()
+    return title
+
 def _parse_feed(url, name, pillar, trust):
     try:
         resp = requests.get(url, headers=UA, timeout=20)
@@ -33,16 +49,6 @@ def _parse_feed(url, name, pillar, trust):
             if _is_promo(title, link):
                 continue
             summary = (getattr(e, "summary", "") or getattr(e, "description", "") or "")[:500]
-            # Google News RSS carries the real outlet in <source>; prefer it over query name
-            outlet = name
-            try:
-                src = e.get("source") if isinstance(e, dict) else getattr(e, "source", None)
-                if isinstance(src, dict) and src.get("title"):
-                    outlet = src["title"].strip()
-                elif isinstance(src, str) and src.strip():
-                    outlet = src.strip()
-            except Exception:
-                pass
             published = getattr(e, "published", "") or getattr(e, "updated", "")
             published_parsed = getattr(e, "published_parsed", None) or getattr(e, "updated_parsed", None)
             ts = time.mktime(published_parsed) if published_parsed else time.time()
@@ -54,6 +60,18 @@ def _parse_feed(url, name, pillar, trust):
                     image = media[0]["url"]
             except Exception:
                 pass
+            # Google News RSS carries the real outlet in <source>; prefer it over feed name.
+            raw_outlet = name
+            try:
+                src = e.get("source") if isinstance(e, dict) else getattr(e, "source", None)
+                if isinstance(src, dict) and src.get("title"):
+                    raw_outlet = src["title"].strip()
+                elif isinstance(src, str) and src.strip():
+                    raw_outlet = src.strip()
+            except Exception:
+                pass
+            outlet = normalize_outlet(raw_outlet, name)
+            title = clean_title(title, outlet)
             items.append({
                 "title": title, "link": link, "summary": summary,
                 "published": published, "ts": ts, "image": image,
