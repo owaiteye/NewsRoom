@@ -17,3 +17,5 @@ jobs:
       - run: python -m py_compile *.py
       - name: Icon regression tests (flags + topics)
         run: python tests/test_flags.py
+      - name: Breaking-gate regression tests
+        run: python tests/test_breaking.py

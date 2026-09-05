@@ -79,11 +79,26 @@ def score_items(items):
 def pick_digest(items, limit=14):
     return items[:limit]
 
+# Evergreen content (listicles, rankings) is never breaking news,
+# no matter how many outlets publish lookalikes the same day.
+EVERGREEN_RES = (
+    re.compile(r"\b\d+\s+(greatest|best|worst|top|most|funniest)\b", re.I),
+    re.compile(r"\bof all time\b", re.I),
+    re.compile(r"\branked\b", re.I),
+)
+
+def _is_evergreen(title):
+    return any(rx.search(title or "") for rx in EVERGREEN_RES)
+
 def pick_breaking(items, sources_cfg, max_per_run=2):
     wl = set(sources_cfg.get("breaking_whitelist", []))
     kws = [k.lower() for k in sources_cfg.get("breaking_keywords", [])]
     cands = []
     for it in items:
+        if it.get("pillar") == "entertainment":
+            continue  # lifestyle/sport/showbiz never breaks, even corroborated
+        if _is_evergreen(it.get("title")):
+            continue  # listicles/rankings are not news events
         title = (it["title"] or "").lower()
         kw_hit = any(k in title for k in kws)  # title only — summaries cause false flags
         if it.get("_corroborated"):
