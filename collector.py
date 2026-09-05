@@ -31,6 +31,16 @@ def _parse_feed(url, name, pillar, trust):
             if _is_promo(title, link):
                 continue
             summary = (getattr(e, "summary", "") or getattr(e, "description", "") or "")[:500]
+            # Google News RSS carries the real outlet in <source>; prefer it over query name
+            outlet = name
+            try:
+                src = e.get("source") if isinstance(e, dict) else getattr(e, "source", None)
+                if isinstance(src, dict) and src.get("title"):
+                    outlet = src["title"].strip()
+                elif isinstance(src, str) and src.strip():
+                    outlet = src.strip()
+            except Exception:
+                pass
             published = getattr(e, "published", "") or getattr(e, "updated", "")
             published_parsed = getattr(e, "published_parsed", None) or getattr(e, "updated_parsed", None)
             ts = time.mktime(published_parsed) if published_parsed else time.time()
@@ -45,7 +55,7 @@ def _parse_feed(url, name, pillar, trust):
             items.append({
                 "title": title, "link": link, "summary": summary,
                 "published": published, "ts": ts, "image": image,
-                "source": name, "pillar": pillar, "trust": trust,
+                "source": name, "outlet": outlet, "pillar": pillar, "trust": trust,
             })
         return items, None
     except Exception as ex:

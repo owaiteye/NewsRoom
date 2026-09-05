@@ -6,9 +6,9 @@ import yaml
 
 from collector import collect
 from dedupe import load_state, save_state, dedupe, mark_seen
-from rank import score_items, pick_digest, pick_breaking
+from rank import score_items, pick_digest, pick_breaking, reclassify
 from summarize import summarize_item
-from publish import build_digest, build_breaking, send
+from publish import build_digest_chunks, build_breaking, send_digest, send_breaking
 
 EAT = datetime.timezone(datetime.timedelta(hours=3))
 SLOTS = {3: "06:00 EAT Morning Brief", 9: "12:00 EAT Midday",
@@ -46,6 +46,7 @@ def main():
     state = load_state()
     fresh = dedupe(items, state)
     print(f"dedupe: {len(items)} -> {len(fresh)} fresh")
+    reclassify(fresh)
     scored = score_items(fresh)
 
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
@@ -58,26 +59,26 @@ def main():
         if not picks:
             print("breaking: no candidates, nothing to post.")
             return
-        summaries = {it["link"]: summarize_item(it["title"], it.get("summary", "")) for it in picks}
-        text = build_breaking(picks, summaries)
+        summaries = {it["link"]: summarize_item(it["title"], it.get("summary", ""), it.get("outlet", it.get("source", ""))) for it in picks}
+        chunks = build_breaking(picks, summaries)
         hero = next((it.get("image", "") for it in picks if it.get("image")), "")
         if not args.dry_run:
             mark_seen(picks, state); save_state(state)
-        send(channel, token, text, hero_image=hero, dry_run=args.dry_run)
+        send_breaking(channel, token, chunks, hero_image=hero, dry_run=args.dry_run)
         print(f"breaking: posted {len(picks)}")
         return
 
-    picks = pick_digest(scored, limit=12)
+    picks = pick_digest(scored, limit=14)
     if not picks:
         print("digest: nothing fresh, nothing to post.")
         return
-    summaries = {it["link"]: summarize_item(it["title"], it.get("summary", "")) for it in picks}
-    text = build_digest(slot_label(), date_label, picks, summaries)
+    summaries = {it["link"]: summarize_item(it["title"], it.get("summary", ""), it.get("outlet", it.get("source", ""))) for it in picks}
+    caption, chunks = build_digest_chunks(slot_label(), date_label, picks, summaries)
     hero = next((it.get("image", "") for it in picks if it.get("image")), "")
     if not args.dry_run:
         mark_seen(picks, state); save_state(state)
-    send(channel, token, text, hero_image=hero, dry_run=args.dry_run)
-    print(f"digest: posted {len(picks)}")
+    send_digest(channel, token, caption, chunks, hero_image=hero, dry_run=args.dry_run)
+    print(f"digest: posted {len(picks)} stories in {len(chunks)} text messages")
 
 if __name__ == "__main__":
     main()

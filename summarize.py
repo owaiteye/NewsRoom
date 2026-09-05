@@ -3,9 +3,17 @@ import os
 import re
 import requests
 
-def _extractive(title, summary, max_words=28):
+def _extractive(title, summary, max_words=28, outlet=""):
+    import html as _html
     text = re.sub(r"<[^>]+>", " ", summary or "").strip()
-    text = re.sub(r"\s+", " ", text)
+    text = _html.unescape(text).replace("\xa0", " ").replace("&nbsp;", " ")
+    text = re.sub(r"\s+", " ", text).strip()
+    if outlet:
+        # Google News appends " - Outlet" / " Outlet" tails; drop them
+        text = re.sub(r"\s*[–—-]\s*" + re.escape(outlet) + r"\s*$", "", text).strip()
+        text = re.sub(r"\s+" + re.escape(outlet) + r"\s*$", "", text).strip()
+    # drop trailing " - Something" tail that Google News appends
+    text = re.split(r"\s+[-–—]\s+[A-Z][\w ]{2,40}$", text)[0].strip()
     if not text:
         return title.strip()
     # first ~2 sentences
@@ -41,9 +49,9 @@ def _gemini_polish(title, summary):
             last_err = f"{model}: {ex}"
     raise RuntimeError(last_err)
 
-def summarize_item(title, summary):
+def summarize_item(title, summary, outlet=""):
     try:
         s = _gemini_polish(title, summary)
         return s[:220] if len(s) > 220 else s
     except Exception:
-        return _extractive(title, summary)  # quota-safe: bot never dies
+        return _extractive(title, summary, outlet=outlet)  # quota-safe: bot never dies

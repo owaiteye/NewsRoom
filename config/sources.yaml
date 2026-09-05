@@ -9,12 +9,12 @@ direct_rss:
   - { name: "New Vision", pillar: uganda, trust: 4, url: "https://www.newvision.co.ug/rss" }
   - { name: "NilePost", pillar: uganda, trust: 3, url: "https://nilepost.co.ug/rss" }
   - { name: "ChimpReports", pillar: uganda, trust: 3, url: "https://chimpreports.com/rss" }
-  - { name: "CNA", pillar: uganda, trust: 4, url: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml" }
 
   # Geopolitics / World
   - { name: "BBC World", pillar: geopolitics, trust: 5, url: "https://feeds.bbci.co.uk/news/world/rss.xml" }
   - { name: "BBC Top", pillar: geopolitics, trust: 5, url: "https://feeds.bbci.co.uk/news/rss.xml" }
   - { name: "RT News", pillar: geopolitics, trust: 2, url: "https://www.rt.com/rss/news/" }
+  - { name: "CNA", pillar: geopolitics, trust: 4, url: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml" }
   - { name: "NHK World", pillar: geopolitics, trust: 4, url: "https://www3.nhk.or.jp/nhkworld/en/news/list/rss/index.xml" }
   - { name: "SCMP", pillar: geopolitics, trust: 4, url: "https://www.scmp.com/rss/91/feed" }
 

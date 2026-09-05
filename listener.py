@@ -20,10 +20,13 @@ def fetch_channel_posts(limit_per_channel=30, max_total=120):
     import yaml
     with open("config/sources.yaml") as f:
         cfg = yaml.safe_load(f)
-    channels = [c["name"] for c in cfg.get("telegram_channels", [])]
+    channels = cfg.get("telegram_channels", [])
+    pillar_of = {c["name"]: c.get("pillar", "geopolitics") for c in channels}
+    trust_of = {c["name"]: c.get("trust", 3) for c in channels}
     items = []
     with TelegramClient(StringSession(session), int(api_id), api_hash) as client:
-        for ch in channels:
+        for c in channels:
+            ch = c["name"]
             try:
                 msgs = client.get_messages(ch, limit=limit_per_channel)
                 for m in msgs or []:
@@ -43,8 +46,9 @@ def fetch_channel_posts(limit_per_channel=30, max_total=120):
                         "title": text[:160].replace("\n", " "),
                         "link": link, "summary": text[:500],
                         "published": str(m.date), "ts": m.date.timestamp(),
-                        "image": "", "source": ch, "pillar": "geopolitics",
-                        "trust": 3, "via_channel": True,
+                        "image": "", "source": ch,
+                        "pillar": pillar_of.get(ch, "geopolitics"),
+                        "trust": trust_of.get(ch, 3), "via_channel": True,
                     })
                     if len(items) >= max_total:
                         break

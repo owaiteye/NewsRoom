@@ -1,6 +1,7 @@
 feedparser>=6.0
 requests>=2.31
 pyyaml>=6.0
+telethon>=1.36  # V2 Telegram channel listener (+ make_session.py)
 # optional (code works without them):
 # rapidfuzz>=3.0
 # beautifulsoup4>=4.12
