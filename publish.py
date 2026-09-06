@@ -68,6 +68,7 @@ FLAG_RULES = [
     ("🇦🇴", ("angola", "luanda")),
     ("🇲🇿", ("mozambique", "maputo")),
     ("🇺🇸", ("united states", "america", "american", "washington", "white house", "pentagon", "cnn", "fox news", "witkoff", "us envoy", "u.s.", "us ", "atlanta")),
+    ("🇺🇳", ("united nations", "un ", "security council", "guterres", "general assembly")),
     ("🇬🇧", ("britain", "british", "united kingdom", "england", "london", "dover", "bbc", "telegraph", "sky sports", "man city", "arsenal", "chelsea", "aston villa", "coventry", "hull city")),
     ("🇪🇺", ("european union", "european", "brussels", "european commission")),
     ("🇫🇷", ("france", "french", "paris", "macron")),
@@ -304,7 +305,9 @@ def _plain(text):
 
 def _clean(text):
     text = _html.unescape(text or "")
-    return text.replace("\xa0", " ").replace("&nbsp;", " ")
+    text = text.replace("\xa0", " ").replace("&nbsp;", " ")
+    # source markup artifacts (africaintel uses **bold**, [...] asides)
+    return text.replace("*", "")
 
 def _outlet(it):
     return it.get("outlet") or it.get("source", "?")
@@ -325,11 +328,12 @@ def _html_cut(text, limit):
     return re.sub(r"<[^>]*$", "", cut).rstrip()
 
 def cut_words(text, limit):
-    """Truncate at a word boundary, never mid-word."""
+    """Truncate at a word boundary, never mid-word; no dangling brackets."""
     text = (text or "").strip()
     if len(text) <= limit:
-        return text
-    return text[:limit].rsplit(" ", 1)[0].rstrip(" ,;:—-.") + "…"
+        return re.sub(r"\s*[\(\[]\s*$", "", text).strip()
+    cut = text[:limit].rsplit(" ", 1)[0].rstrip(" ,;:—-.")
+    return re.sub(r"\s*[\(\[]\s*$", "", cut).strip() + "…"
 
 def _story_block(num, it, summaries, categories=None):
     s = summaries.get(it["link"], it["title"])

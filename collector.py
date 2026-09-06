@@ -30,10 +30,12 @@ def normalize_outlet(outlet, fallback=""):
 
 def clean_title(title, outlet):
     """Drop trailing tails (we render the outlet separately):
-    ' - Outlet Name' and ' - outlet.domain' alike."""
+    ' - Outlet Name', ' - outlet.domain' and ' | Outlet ...' alike."""
     title = (title or "").strip()
     if outlet and outlet.lower() not in ("google news", "?"):
         title = re.sub(r"\s+[–—-]\s*" + re.escape(outlet) + r"\s*$",
+                       "", title, flags=re.IGNORECASE).strip()
+        title = re.sub(r"\s+[|｜]\s*" + re.escape(outlet.split()[0]) + r".*$",
                        "", title, flags=re.IGNORECASE).strip()
     title = re.sub(r"\s+[–—-]\s*[\w-]+\.[\w.]+\s*$", "", title).strip()
     return title

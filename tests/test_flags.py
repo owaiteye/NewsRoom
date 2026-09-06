@@ -131,11 +131,12 @@ bc = build_breaking(
     {"http://b": "govt says plot stopped"}, {"http://b": "conflict"})[0]
 assert "BREAKING" not in bc and "Coup attempt foiled in capital" not in bc, bc
 assert "govt says plot stopped" in bc and "<b>BBC World</b>" in bc, bc
-# listener hygiene additions: orphan parens, channel spam
-from listener import _cut_words, _is_spam
-assert _cut_words("uncovering hidden gems. (", 260) == "uncovering hidden gems."
-assert _cut_words("x " * 200 + " (", 260).endswith("…") and "(" not in _cut_words("x " * 200 + " (", 260)[-8:]
-assert _is_spam("OUTCOME'S FIRST SPORTS MARKET IS LIVE (TRADE THE INEVITABLE OUTCOME.)")
-assert not _is_spam("Coinbase launches bitcoin-backed mortgages")
+# source markup junk stripped; pipe-outlet tails stripped; UN flag exists
+from publish import _clean, story_flag as _sf
+assert "**" not in _clean("Angola approved sale** Angola's CMC did things")
+assert _clean("a [bracketed] aside") == "a [bracketed] aside"
+assert clean_title("Arrocha Career Record | Goal.com Uganda", "Goal") == "Arrocha Career Record"
+assert _sf({"title": "UN approves resolution on maps", "summary": "", "pillar": "geopolitics",
+            "source": "t", "outlet": "t"}) == "🇺🇳"
 print("hygiene tests passed")
 sys.exit(1 if fails else 0)

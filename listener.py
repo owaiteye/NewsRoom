@@ -17,6 +17,8 @@ def _clean_text(text):
     text = re.sub(r"[\u200b-\u200f\u2060-\u2064\ufeff]", "", text)  # invisible chars FIRST
     text = re.sub(r"\(\s*\)", "", text)  # leftover empty parens after URL strip
     text = re.sub(r"\s+", " ", text).strip()
+    # trailing "| Outlet" / "| outlet.domain" tails (we render the source separately)
+    text = re.sub(r"\s+[|｜]\s*[\w. ]{2,40}$", "", text).strip()
     m = LEAD_OUTLET_RE.match(text)
     if m:
         text = m.group(3).strip().rstrip(")")

@@ -104,5 +104,19 @@ check("fifa story is entertainment", fifa[0]["pillar"] == "entertainment"
       and pick_breaking([{**fifa[0], "link": "http://f", "_score": 9,
                           "_corroborated": True, "ts": 9999999999}], CFG) == [])
 
+# 11. corroboration partners share one digest slot (no triple lineups)
+from rank import pick_digest
+lineups = [
+    _item("Arsenal vs Chelsea: Line-ups confirmed for London derby", "A"),
+    _item("See Arsenal's starting line-up v Chelsea", "B"),
+    _item("Unrelated dam project launched", "C"),
+]
+scored_l = score_items(lineups)
+dup_links = [s["link"] for s in scored_l if s.get("_dup_of")]
+check("lineup pair corroborated", len(dup_links) >= 1)
+got_l = pick_digest(scored_l, limit=3)
+arsenal = [g for g in got_l if "arsenal" in g["title"].lower()]
+check("one slot per event", len(arsenal) == 1 and len(got_l) == 2)
+
 print(f"{'ALL BREAKING TESTS PASSED' if not fails else f'{fails} FAILURES'}")
 sys.exit(1 if fails else 0)

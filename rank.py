@@ -45,6 +45,15 @@ def _title_sim(a, b):
         import difflib
         return difflib.SequenceMatcher(None, a, b).ratio()
 
+def _same_event(a, b):
+    """Two headlines = same event? Fuzzy similarity OR ≥2 shared long words
+    (e.g. 'Arsenal ... Chelsea ... line-up' vs 'Arsenal ... Chelsea ... lineups')."""
+    if _title_sim(a, b) >= 0.55:
+        return True
+    wa = {w for w in a.split() if len(w) >= 5}
+    wb = {w for w in b.split() if len(w) >= 5}
+    return len(wa & wb) >= 2
+
 def score_items(items):
     for it in items:
         age_h = max(0, (time.time() - it.get("ts", time.time())) / 3600)
@@ -70,9 +79,10 @@ def score_items(items):
                 continue
             if len(norms[j].split()) < 5:
                 continue
-            if _title_sim(norms[i], norms[j]) >= 0.55:
+            if _same_event(norms[i], norms[j]):
                 it["_score"] += 3
                 it["_corroborated"] = True
+                it["_dup_of"] = other.get("link")
                 break
     items.sort(key=lambda x: x.get("_score", 0), reverse=True)
     return items
@@ -80,10 +90,14 @@ def score_items(items):
 def pick_digest(items, limit=14):
     # visible-dedupe: drop near-dupes of an already-picked story (looser than
     # the 0.82 ingest gate — two wires, one slot, badge stays accurate).
-    picks = []
+    # Corroboration partners of a picked story are also skipped: the survivor
+    # keeps its ✅ badge, the slot goes to genuinely different news.
+    picks, picked_links = [], set()
     for it in items:
         if len(picks) >= limit:
             break
+        if it.get("_dup_of") in picked_links:
+            continue
         nt = _norm(it["title"])
         dup = False
         for p in picks:
@@ -96,6 +110,7 @@ def pick_digest(items, limit=14):
         if dup:
             continue
         picks.append(it)
+        picked_links.add(it.get("link"))
     return picks
 
 # Evergreen content (listicles, rankings) is never breaking news,
