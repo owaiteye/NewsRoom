@@ -133,7 +133,8 @@ assert "BREAKING" not in bc and "Coup attempt foiled in capital" not in bc, bc
 assert "govt says plot stopped" in bc and "<b>BBC World</b>" in bc, bc
 # listener hygiene additions: orphan parens, channel spam
 from listener import _cut_words, _is_spam
-assert _cut_words("uncovering hidden gems. (", 260) == "uncovering hidden gems.…"
+assert _cut_words("uncovering hidden gems. (", 260) == "uncovering hidden gems."
+assert _cut_words("x " * 200 + " (", 260).endswith("…") and "(" not in _cut_words("x " * 200 + " (", 260)[-8:]
 assert _is_spam("OUTCOME'S FIRST SPORTS MARKET IS LIVE (TRADE THE INEVITABLE OUTCOME.)")
 assert not _is_spam("Coinbase launches bitcoin-backed mortgages")
 print("hygiene tests passed")
