@@ -11,11 +11,15 @@ from rank import score_items, pick_breaking, _is_evergreen
 CFG = {"breaking_whitelist": ["BBC World", "BellumActaNews"],
        "breaking_keywords": ["breaking", "urgent", "coup", "explosion", "earthquake"]}
 
-def _item(title, source, pillar="geopolitics", corroborated=False):
-    return {"title": title, "summary": "", "link": f"https://x/{abs(hash(title)) % 99999}",
-            "source": source, "outlet": source, "pillar": pillar, "trust": 3,
-            "ts": 9999999999, "_score": 5,
-            **({"_corroborated": True} if corroborated else {})}
+def _item(title, source, pillar="geopolitics", corroborated=False, cat=None):
+    it = {"title": title, "summary": "", "link": f"https://x/{abs(hash(title)) % 99999}",
+          "source": source, "outlet": source, "pillar": pillar, "trust": 3,
+          "ts": 9999999999, "_score": 5}
+    if corroborated:
+        it["_corroborated"] = True
+    if cat is not None:
+        it["_cat"] = cat
+    return it
 
 fails = 0
 def check(name, cond):
@@ -62,6 +66,43 @@ check("corroborated pair breaks", len(pick_breaking(scored, CFG)) == 2)
 lst = [_item("5 Greatest Time Travel Anime of All Time, Ranked", "CBR", "entertainment"),
        _item("5 Best Time Travel Anime of All Time, Ranked", "ScreenRant", "entertainment")]
 check("listicle pair never breaks", pick_breaking(score_items(lst), CFG) == [])
+
+# 7. AI category gate: lifestyle/mush never breaks, hard news does
+check("film category never breaks",
+      pick_breaking([_item("Coup attempt foiled", "BBC World", "geopolitics", True, "film")], CFG) == [])
+check("other category never breaks",
+      pick_breaking([_item("Why women carry the mental load", "BBC Top", "geopolitics", True, "other")], CFG) == [])
+check("politics category breaks",
+      len(pick_breaking([_item("Coup attempt foiled", "BBC World", "geopolitics", True, "politics")], CFG)) == 1)
+check("unknown category falls back to old rules",
+      len(pick_breaking([_item("Coup attempt foiled", "BBC World", "geopolitics", True, None)], CFG)) == 1)
+check("disaster category breaks",
+      len(pick_breaking([_item("Earthquake hits region", "BBC World", "geopolitics", True, "disaster")], CFG)) == 1)
+
+# 8. opinion pieces never break
+check("opinion never breaks",
+      pick_breaking([_item("Pay politicians for work done, writes Namiti", "dailymonitor",
+                            "uganda", True, "politics")], CFG) == [])
+
+# 9. visible-dedupe: two wires, one slot
+from rank import pick_digest
+dupes = [_item("President Infantino will seek re-election in March, FIFA says", "CNA",
+               "geopolitics", True),
+         _item("Fifa president Infantino will stand for re-election", "BBC Top",
+               "geopolitics", True),
+         _item("Unrelated dam project launched", "BBC World", "geopolitics", True)]
+got = pick_digest(dupes, limit=3)
+check("near-dupe collapsed to one slot", len(got) == 2
+      and got[0]["source"] == "CNA" and got[1]["source"] == "BBC World")
+
+# 10. sport bodies reclassify to entertainment (never breaking)
+from rank import reclassify
+fifa = [{"title": "President Infantino will seek re-election in March, FIFA says",
+         "summary": "", "pillar": "geopolitics", "source": "CNA"}]
+reclassify(fifa)
+check("fifa story is entertainment", fifa[0]["pillar"] == "entertainment"
+      and pick_breaking([{**fifa[0], "link": "http://f", "_score": 9,
+                          "_corroborated": True, "ts": 9999999999}], CFG) == [])
 
 print(f"{'ALL BREAKING TESTS PASSED' if not fails else f'{fails} FAILURES'}")
 sys.exit(1 if fails else 0)

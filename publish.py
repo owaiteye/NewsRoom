@@ -79,7 +79,8 @@ FLAG_RULES = [
     ("🇮🇹", ("italy", "italian", "rome", "milan", "meloni")),
     ("🇪🇸", ("spain", "spanish", "madrid", "barcelona", "hola", "vuelta", "la liga")),
     ("🇵🇹", ("portugal", "portuguese", "lisbon")),
-    ("🇳🇱", ("netherlands", "dutch", "amsterdam", "hague")),
+    ("🇳🇱", ("netherlands", "dutch", "amsterdam", "hague", "ajax",
+             "eredivisie", "psv", "feyenoord")),
     ("🇧🇪", ("belgium", "belgian", "brussels")),
     ("🇦🇹", ("austria", "austrian", "vienna")),
     ("🇨🇭", ("switzerland", "swiss", "geneva", "zurich", "bern")),
@@ -196,7 +197,7 @@ CATEGORY_EMOJI = {
     "space": "🚀", "ai": "🤖", "crypto": "🪙", "markets": "📈",
     "football": "⚽", "sport": "🏅", "film": "🎬", "gaming": "🎮",
     "health": "🦠", "politics": "🏛️", "diplomacy": "🤝", "justice": "⚖️",
-    "business": "💼", "agriculture": "🌱", "other": "",
+    "business": "💼", "agriculture": "🌱", "disaster": "🌋", "other": "",
 }
 CATEGORIES = sorted(k for k in CATEGORY_EMOJI if k != "other") + ["other"]
 
@@ -398,27 +399,26 @@ def build_digest_chunks(slot_label, date_label, items, summaries, categories=Non
             n += 1
     body_blocks.append(footer)
 
-    # photo caption: header + top-1 story only (caption cap = 1024)
+    # photo caption: top story only, no headers/counts (caption cap = 1024)
     first = top[0] if top else items[0]
-    caption = (header + f"\n🔥 *TOP STORY*\n" +
-               _story_block(1, first, summaries, categories) +
-               f"\n_Full {len(items)}-story digest in next message(s) _")
+    caption = (f"🔥 *TOP STORY*\n" +
+               _story_block(1, first, summaries, categories))
     caption = cut_words(caption, 950)
 
-    # chunk body into messages
-    chunks, cur = [], header + "\n"
+    # chunk body into messages (no headers, no cont markers)
+    chunks, cur = [], ""
     for b in body_blocks:
         if len(cur) + len(b) > CHUNK:
             chunks.append(cur)
-            cur = f"_(cont. {esc(digest_title)} {esc(slot_label)})_\n\n"
+            cur = ""
         cur += b + "\n"
     if cur.strip():
         chunks.append(cur)
     return caption, [c[:4000] for c in chunks]
 
 def build_breaking(items, summaries, categories=None):
-    lines = ["🚨 *BREAKING*\n"]
-    n = 1
+    # Title-less breaking posts: icons + summary + source only.
+    lines = []
     for it in items:
         s = summaries.get(it["link"], it["title"])
         cat = (categories or {}).get(it["link"])
@@ -426,9 +426,7 @@ def build_breaking(items, summaries, categories=None):
             src = f" — via **@{esc(_clean(it['source']))}**"
         else:
             src = f" — **{esc(_clean(_outlet(it)))}**"
-        lines.append(f"{story_emoji(it, cat)} *{esc(_clean(it['title']))}*\n"
-                     f"   {esc(_clean(cut_words(s, 200)))}{src} [link]({it['link']})\n")
-        n += 1
+        lines.append(f"{story_emoji(it, cat)} {esc(_clean(cut_words(s, 220)))}{src} [link]({it['link']})\n")
     lines.append("_Developing story • verify via links • via NewsRoom_")
     text = "\n".join(lines)
     return [text[i:i + CHUNK] for i in range(0, len(text), CHUNK)]

@@ -8,7 +8,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from publish import story_flag, story_topic, story_emoji, _hi_res
-from collector import normalize_outlet, clean_title
+from collector import normalize_outlet, clean_title, _is_promo
 from listener import _clean_text
 
 FLAG_CASES = [
@@ -104,10 +104,30 @@ tj, _ = _clean_text("🇺🇸🤝 (⁣)(  US sanctions Iran-linked Turkish bank 
 assert tj == "US sanctions Iran-linked Turkish bank The Treasury did things", tj
 # hi-res upgrades + story block bolds the outlet
 assert "/ace/standard/976/" in _hi_res("https://ichef.bbci.co.uk/ace/standard/240/abc.jpg")
-from publish import _story_block
+from publish import _story_block, build_digest_chunks, build_breaking
 b = _story_block(1, {"title": "T", "link": "http://x", "source": "BBC Top",
                      "outlet": "BBC Top", "pillar": "geopolitics"},
                  {"http://x": "S"}, {})
 assert "**BBC Top**" in b, b
+# template junk never survives the promo filter
+assert _is_promo("NEWS TEMPLATE | Goal.com Uganda - Goal.com", "http://x")
+assert _is_promo("A standard news template page", "http://x")
+# trailing domain tails are stripped like outlet tails
+assert clean_title("Museveni forty years - independent.co.uk", "Independent") == "Museveni forty years"
+# digests carry no titles, counts or cont markers...
+cap, chunks = build_digest_chunks("Afternoon Wrap", "06 Sep 2026",
+    [{"title": "T1", "link": "http://a", "source": "BBC Top", "outlet": "BBC Top",
+      "pillar": "geopolitics", "summary": "summary one here"}],
+    {"http://a": "summary one here"}, {})
+joined = cap + "\n" + "\n".join(chunks)
+assert "NEWSROOM" not in joined and "stories •" not in joined and "cont." not in joined, joined
+assert "🔥 *TOP STOR" in joined  # sections stay
+# ...and breaking posts are title-less (no bold headlines, no BREAKING banner)
+bc = build_breaking(
+    [{"title": "Coup attempt foiled in capital", "link": "http://b", "source": "BBC World",
+      "outlet": "BBC World", "pillar": "geopolitics", "summary": "govt says plot stopped"}],
+    {"http://b": "govt says plot stopped"}, {"http://b": "conflict"})[0]
+assert "BREAKING" not in bc and "Coup attempt foiled in capital" not in bc, bc
+assert "govt says plot stopped" in bc and "**BBC World**" in bc, bc
 print("hygiene tests passed")
 sys.exit(1 if fails else 0)

@@ -5,13 +5,14 @@ import urllib.parse
 import feedparser
 import requests
 
-UA = {"User-Agent": "NewsRoomBot/1.0 (+https://t.me/generalintel)"}
+UA = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0 NewsRoomBot/1.0"}
 TIMEOUT = 20
 
 # Generic promo / non-story entries that pollute BBC-style feeds
 PROMO_PATTERNS = (
     "bbc news app", "tech life", "newscast", "follow us",
     "sign up for", "newsletter", "live blog setup",
+    "news template", "template page",
 )
 
 def _is_promo(title, link):
@@ -28,11 +29,13 @@ def normalize_outlet(outlet, fallback=""):
     return outlet or fallback or "?"
 
 def clean_title(title, outlet):
-    """Drop a trailing ' - Outlet' tail (we render the outlet separately)."""
+    """Drop trailing tails (we render the outlet separately):
+    ' - Outlet Name' and ' - outlet.domain' alike."""
     title = (title or "").strip()
     if outlet and outlet.lower() not in ("google news", "?"):
         title = re.sub(r"\s+[–—-]\s*" + re.escape(outlet) + r"\s*$",
                        "", title, flags=re.IGNORECASE).strip()
+    title = re.sub(r"\s+[–—-]\s*[\w-]+\.[\w.]+\s*$", "", title).strip()
     return title
 
 def _parse_feed(url, name, pillar, trust):

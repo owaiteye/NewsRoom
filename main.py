@@ -85,11 +85,18 @@ def main():
     date_label = now_eat.strftime("%d %b %Y")
 
     if args.mode == "breaking-only":
-        picks = pick_breaking(scored, cfg)
-        if not picks:
+        # stage 1: cheap rules (no AI) -> summarize survivors only -> stage 2: AI category gate
+        candidates = pick_breaking(scored, cfg, max_per_run=6, apply_category=False)
+        if not candidates:
             print("breaking: no candidates, nothing to post.")
             return
-        summaries, categories = summarize_all(picks)
+        summaries, categories = summarize_all(candidates)
+        for it in candidates:
+            it["_cat"] = categories.get(it["link"])
+        picks = pick_breaking(candidates, cfg)
+        if not picks:
+            print("breaking: category gate dropped all candidates, nothing to post.")
+            return
         chunks = build_breaking(picks, summaries, categories)
         hero = next((it.get("image", "") for it in picks if it.get("image")), "")
         send_breaking(channel, token, chunks, hero_image=hero,

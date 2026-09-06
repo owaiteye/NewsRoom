@@ -24,7 +24,7 @@ direct_rss:
   - { name: "BBC Top", pillar: geopolitics, trust: 5, url: "https://feeds.bbci.co.uk/news/rss.xml" }
   - { name: "RT News", pillar: geopolitics, trust: 2, url: "https://www.rt.com/rss/news/" }
   - { name: "CNA", pillar: geopolitics, trust: 4, url: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml" }
-  - { name: "NHK World", pillar: geopolitics, trust: 4, url: "https://www3.nhk.or.jp/nhkworld/en/news/list/rss/index.xml" }
+  # NHK direct RSS retired (404) — covered by the nhkworld Telegram channel + Asia queries.
   - { name: "SCMP", pillar: geopolitics, trust: 4, url: "https://www.scmp.com/rss/91/feed" }
 
   # Tech

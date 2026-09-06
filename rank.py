@@ -20,7 +20,8 @@ UGANDA_WORDS = ("uganda", "kampala", "museveni", "updf", "entebbe", "omukama",
                 "parliament", "shilling", "ntv uganda", "new vision", "daily monitor")
 ENT_WORDS = ("league", "cup", "match", "victory", "win ", "wins", "beats", "series lead",
              "playoff", "transfer", "derby", "coach", "jersey", "stage ", "trailer",
-             "box office", "premiere", "season", "netflix", "episode", "rugby", "cricket")
+             "box office", "premiere", "season", "netflix", "episode", "rugby", "cricket",
+             "fifa", "uefa", "grand prix", "olympic")
 
 def reclassify(items):
     """Fix pillar for items from generic feeds (CNA, BBC Top, GNews region queries)
@@ -77,7 +78,25 @@ def score_items(items):
     return items
 
 def pick_digest(items, limit=14):
-    return items[:limit]
+    # visible-dedupe: drop near-dupes of an already-picked story (looser than
+    # the 0.82 ingest gate — two wires, one slot, badge stays accurate).
+    picks = []
+    for it in items:
+        if len(picks) >= limit:
+            break
+        nt = _norm(it["title"])
+        dup = False
+        for p in picks:
+            pt = _norm(p["title"])
+            # long headlines share boilerplate: allow a looser bar for them
+            thresh = 0.62 if min(len(nt), len(pt)) >= 40 else 0.70
+            if _title_sim(nt, pt) >= thresh:
+                dup = True
+                break
+        if dup:
+            continue
+        picks.append(it)
+    return picks
 
 # Evergreen content (listicles, rankings) is never breaking news,
 # no matter how many outlets publish lookalikes the same day.
@@ -85,12 +104,24 @@ EVERGREEN_RES = (
     re.compile(r"\b\d+\s+(greatest|best|worst|top|most|funniest)\b", re.I),
     re.compile(r"\bof all time\b", re.I),
     re.compile(r"\branked\b", re.I),
+    re.compile(r"\bopinion\b", re.I),
+    re.compile(r"\beditorial\b", re.I),
+    re.compile(r"\bwrites\b", re.I),
 )
+
+# AI categories allowed to break. Lifestyle/showbiz buckets (film, gaming,
+# sport, football) and unclassifiable mush ("other") can never break.
+# Unknown (None, e.g. offline mode) falls back to the pillar/keyword rules.
+BREAKING_CATEGORIES = {
+    "conflict", "explosion", "politics", "justice", "markets", "health",
+    "diplomacy", "aviation", "naval", "space", "ai", "crypto", "business",
+    "agriculture", "disaster",
+}
 
 def _is_evergreen(title):
     return any(rx.search(title or "") for rx in EVERGREEN_RES)
 
-def pick_breaking(items, sources_cfg, max_per_run=2):
+def pick_breaking(items, sources_cfg, max_per_run=2, apply_category=True):
     wl = set(sources_cfg.get("breaking_whitelist", []))
     kws = [k.lower() for k in sources_cfg.get("breaking_keywords", [])]
     cands = []
@@ -98,7 +129,10 @@ def pick_breaking(items, sources_cfg, max_per_run=2):
         if it.get("pillar") == "entertainment":
             continue  # lifestyle/sport/showbiz never breaks, even corroborated
         if _is_evergreen(it.get("title")):
-            continue  # listicles/rankings are not news events
+            continue  # listicles/rankings/opinions are not news events
+        cat = it.get("_cat")
+        if apply_category and cat is not None and cat not in BREAKING_CATEGORIES:
+            continue  # AI says lifestyle/showbiz/mush -> never breaking
         title = (it["title"] or "").lower()
         kw_hit = any(k in title for k in kws)  # title only — summaries cause false flags
         if it.get("_corroborated"):

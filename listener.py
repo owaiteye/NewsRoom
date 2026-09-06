@@ -20,6 +20,10 @@ def _clean_text(text):
     m = LEAD_OUTLET_RE.match(text)
     if m:
         text = m.group(3).strip().rstrip(")")
+    # channel artifacts that defeat dedupe: hashtags, "writes X" bylines
+    text = re.sub(r"#\w+", "", text)
+    text = re.sub(r"\s*,?\s*writes\s+[A-Z][\w.\-]*\.?\s*$", "", text)
+    text = re.sub(r"\s+", " ", text).strip()
     # strip leading non-alphanumeric decor (flags, bullets, dashes)
     text = re.sub(r"^[^A-Za-z0-9(\[]+", "", text).strip()
     text = re.sub(r"^[\(\[]+[^A-Za-z0-9(\[]*", "", text).strip()
