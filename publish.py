@@ -298,9 +298,9 @@ def _api(token, method, payload, timeout=25):
         raise RuntimeError(f"telegram/{method}: {msg}") from None
 
 def _plain(text):
-    """Strip Markdown markers for the plain-text fallback send."""
-    t = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text or "")
-    return t.replace("*", "").replace("_", "").replace("`", "")
+    """Strip HTML tags for the plain-text fallback send."""
+    t = re.sub(r'<a\s+href="[^"]*">(.*?)</a>', r"\1", text or "")
+    return re.sub(r"</?[a-z]+[^>]*>", "", t)
 
 def _clean(text):
     text = _html.unescape(text or "")
@@ -310,7 +310,19 @@ def _outlet(it):
     return it.get("outlet") or it.get("source", "?")
 
 def esc(text):
-    return (text or "").replace("_", " ").replace("*", " ").replace("[", "(").replace("]", ")").replace("`", "'")
+    """HTML-escape user content (titles, summaries, outlets)."""
+    return _html.escape(text or "", quote=False)
+
+def _url(u):
+    return (u or "").replace("&", "&amp;")
+
+def _html_cut(text, limit):
+    """Truncate HTML without splitting a tag in half."""
+    text = (text or "").strip()
+    if len(text) <= limit:
+        return text
+    cut = text[:limit].rsplit(" ", 1)[0]
+    return re.sub(r"<[^>]*$", "", cut).rstrip()
 
 def cut_words(text, limit):
     """Truncate at a word boundary, never mid-word."""
@@ -324,11 +336,11 @@ def _story_block(num, it, summaries, categories=None):
     cat = (categories or {}).get(it["link"])
     corr = " ✅ 2 sources" if it.get("_corroborated") else ""
     if it.get("via_channel"):
-        src = f" — via **@{esc(_clean(it['source']))}**"
+        src = f" — via <b>@{esc(_clean(it['source']))}</b>"
     else:
-        src = f" — **{esc(_clean(_outlet(it)))}**"
-    return (f"{num}. {story_emoji(it, cat)} *{esc(_clean(it['title']))}*{esc(corr)}\n"
-            f"   {esc(_clean(cut_words(s, 200)))}{src} [link]({it['link']})\n")
+        src = f" — <b>{esc(_clean(_outlet(it)))}</b>"
+    return (f"{num}. {story_emoji(it, cat)} <b>{esc(_clean(it['title']))}</b>{esc(corr)}\n"
+            f"   {esc(_clean(cut_words(s, 200)))}{src} <a href=\"{_url(it['link'])}\">link</a>\n")
 
 def _hi_res(url):
     """Upgrade known thumbnail patterns to larger variants."""
@@ -373,9 +385,8 @@ def pick_hero(items):
 
 def build_digest_chunks(slot_label, date_label, items, summaries, categories=None,
                         digest_title="NEWSROOM", header_emoji="🌍", pillars=None,
-                        footer="_#digest • Full stories via links • via NewsRoom_"):
-    header = (f"{header_emoji} *{digest_title} — {esc(slot_label)} | {esc(date_label)}*\n"
-              f"_{len(items)} stories • links included_\n")
+                        footer='<i>#digest • Full stories via links • via NewsRoom</i>'):
+    header = f"<b>{esc(slot_label)} | {esc(date_label)}</b>\n"
     order = list(pillars) if pillars else ["uganda", "geopolitics", "tech", "crypto", "entertainment"]
     grouped = {p: [] for p in order}
     for it in items:
@@ -385,7 +396,7 @@ def build_digest_chunks(slot_label, date_label, items, summaries, categories=Non
     n = 1
     top = items[:3]
     if top:
-        body_blocks.append("🔥 *TOP STORIES*\n")
+        body_blocks.append("🔥 <b>TOP STORIES</b>\n")
         for it in top:
             body_blocks.append(_story_block(n, it, summaries, categories))
             n += 1
@@ -393,17 +404,17 @@ def build_digest_chunks(slot_label, date_label, items, summaries, categories=Non
         rest = [x for x in grouped.get(p, []) if x not in top]
         if not rest:
             continue
-        body_blocks.append(f"{PILLAR_EMOJI.get(p, '📰')} *{PILLAR_TITLE.get(p, p.upper())}*\n")
+        body_blocks.append(f"{PILLAR_EMOJI.get(p, '📰')} <b>{esc(PILLAR_TITLE.get(p, p.upper()))}</b>\n")
         for it in rest:
             body_blocks.append(_story_block(n, it, summaries, categories))
             n += 1
     body_blocks.append(footer)
 
-    # photo caption: top story only, no headers/counts (caption cap = 1024)
+    # photo caption: wrap/date header + top story (caption cap = 1024)
     first = top[0] if top else items[0]
-    caption = (f"🔥 *TOP STORY*\n" +
+    caption = (header + f"🔥 <b>TOP STORY</b>\n" +
                _story_block(1, first, summaries, categories))
-    caption = cut_words(caption, 950)
+    caption = _html_cut(caption, 950)
 
     # chunk body into messages (no headers, no cont markers)
     chunks, cur = [], ""
@@ -423,11 +434,11 @@ def build_breaking(items, summaries, categories=None):
         s = summaries.get(it["link"], it["title"])
         cat = (categories or {}).get(it["link"])
         if it.get("via_channel"):
-            src = f" — via **@{esc(_clean(it['source']))}**"
+            src = f" — via <b>@{esc(_clean(it['source']))}</b>"
         else:
-            src = f" — **{esc(_clean(_outlet(it)))}**"
-        lines.append(f"{story_emoji(it, cat)} {esc(_clean(cut_words(s, 220)))}{src} [link]({it['link']})\n")
-    lines.append("_Developing story • verify via links • via NewsRoom_")
+            src = f" — <b>{esc(_clean(_outlet(it)))}</b>"
+        lines.append(f"{story_emoji(it, cat)} {esc(_clean(cut_words(s, 220)))}{src} <a href=\"{_url(it['link'])}\">link</a>\n")
+    lines.append("<i>Developing story • verify via links • via NewsRoom</i>")
     text = "\n".join(lines)
     return [text[i:i + CHUNK] for i in range(0, len(text), CHUNK)]
 
@@ -450,20 +461,20 @@ def send_digest(channel, token, caption, chunks, hero_image="", dry_run=False, j
         try:
             sent.append(_api(token, "sendPhoto", {
                 "chat_id": channel, "photo": hero_image,
-                "caption": caption, "parse_mode": "Markdown"}))
+                "caption": _html_cut(caption, 1000), "parse_mode": "HTML"}))
         except Exception as ex:
             print(f"sendPhoto failed ({ex}), posting text only")
     for i, c in enumerate(chunks):
         payload = {"chat_id": channel, "text": c,
-                   "parse_mode": "Markdown", "disable_web_page_preview": False}
+                   "parse_mode": "HTML", "disable_web_page_preview": False}
         if join_url and i == len(chunks) - 1:
             payload["reply_markup"] = _join_button(join_url)
         try:
             sent.append(_api(token, "sendMessage", payload))
         except Exception as ex:
-            # Unbalanced markdown (or any API hiccup) must not kill the run:
+            # Unbalanced markup (or any API hiccup) must not kill the run:
             # retry once as plain text.
-            print(f"markdown send failed ({ex}), retrying plain text")
+            print(f"html send failed ({ex}), retrying plain text")
             payload.pop("parse_mode", None)
             payload["text"] = _plain(c)
             sent.append(_api(token, "sendMessage", payload))
@@ -479,13 +490,13 @@ def send_breaking(channel, token, chunks, hero_image="", dry_run=False, join_url
         try:
             _api(token, "sendPhoto", {
                 "chat_id": channel, "photo": hero_image,
-                "caption": chunks[0][:1000], "parse_mode": "Markdown"})
+                "caption": _html_cut(chunks[0], 1000), "parse_mode": "HTML"})
             chunks = chunks[1:] if len(chunks) > 1 else []
         except Exception as ex:
             print(f"breaking sendPhoto failed ({ex})")
     for i, c in enumerate(chunks):
         payload = {"chat_id": channel, "text": c,
-                   "parse_mode": "Markdown", "disable_web_page_preview": False}
+                   "parse_mode": "HTML", "disable_web_page_preview": False}
         if join_url and i == len(chunks) - 1:
             payload["reply_markup"] = _join_button(join_url)
         try:

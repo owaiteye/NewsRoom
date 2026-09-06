@@ -18,7 +18,7 @@ DEFAULT_BRANDING = {
     "digest_a_title": "NEWSROOM", "digest_a_emoji": "🌍",
     "digest_b_title": "NEWSROOM+", "digest_b_emoji": "⚡",
     "demo_link": "https://t.me/generalintel",
-    "footer": "📣 [Join the Newsroom](https://t.me/generalintel) • #digest",
+    "footer": "📣 <a href=\"https://t.me/generalintel\">Join the Newsroom</a> • #digest",
 }
 
 def slot_label(now_utc=None):

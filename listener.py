@@ -35,11 +35,26 @@ def _clean_text(text):
         text = text.rstrip(")").strip()
     return re.sub(r"\s+", " ", text).strip(), urls
 
-def _cut_words(text, limit=180):
+def _cut_words(text, limit=260):
     text = (text or "").strip()
+    # never leave a dangling opening paren at the end
+    text = re.sub(r"\s*\(\s*$", "", text).strip()
     if len(text) <= limit:
         return text
-    return text[:limit].rsplit(" ", 1)[0].rstrip(" ,;:—-.") + "…"
+    cut = text[:limit].rsplit(" ", 1)[0].rstrip(" ,;:—-.")
+    cut = re.sub(r"\s*\(\s*$", "", cut).strip()
+    return cut + "…"
+
+# Channel ad spam (pump schemes, fake giveaways). Legit crypto news stays.
+SPAM_PATTERNS = (
+    "trade the inevitable", "100x", "moonshot", "moon shot", "presale live",
+    "presale is live", "giveaway", "guaranteed profit", "double your money",
+    "risk-free profit", "outcome's first", "join the presale",
+)
+
+def _is_spam(text):
+    t = (text or "").lower()
+    return any(p in t for p in SPAM_PATTERNS)
 
 def fetch_channel_posts(limit_per_channel=8, max_total=200):
     api_id = os.environ.get("API_ID", "").strip()
@@ -71,7 +86,7 @@ def fetch_channel_posts(limit_per_channel=8, max_total=200):
                     if len(raw) < 40:
                         continue
                     text, found_urls = _clean_text(raw)
-                    if len(text) < 30:
+                    if len(text) < 30 or _is_spam(text):
                         continue
                     # find first url or link message
                     url = None
